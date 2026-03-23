@@ -16,7 +16,7 @@ import {
  */
 
 // 👇 GANTI DENGAN URL WEB APP GOOGLE APPS SCRIPT KAMU YANG BARU (YANG BARU DI-DEPLOY) 👇
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbzeAlcZPdgzm33q4UVIFYNrmQjQsZX81CPRVbRwS5N-3mnkhfTv8GgrH9dreST7HjuKUw/exec"; 
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyBuw4bTzknlW7XrNHQ1hUCzYluYIPctolk5L0uizCYrRZtAri5H1JEnaDA86I9p1O8Nw/exec"; 
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
