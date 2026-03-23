@@ -210,7 +210,9 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tighter text-slate-900 leading-none">BudgetIN <span className="text-emerald-500">PRO</span></h1>
-              <p className="text-slate-400 text-[9px] font-black tracking-widest uppercase mt-1">Intelligent Engine</p>
+              <p className="text-slate-400 text-[9px] font-black italic tracking-widest uppercase mt-1">
+  Sharia Edition
+</p>
             </div>
           </div>
           <button onClick={() => userId && fetchData(userId)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all shadow-sm active:scale-95"><RefreshCcw className="w-5 h-5" /></button>
