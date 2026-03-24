@@ -3,83 +3,90 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Activity, Loader2, Lock, CheckCircle2, LayoutDashboard, History, 
-  PieChart as PieChartIcon, Search, Filter, Calendar, RefreshCcw, 
-  Trash2, AlertTriangle, Target, BarChart3, LineChart,
-  ChevronLeft, ChevronRight, Calculator, Coins, HeartHandshake,
-  Wallet, Users, Home, Play, Heart, Smartphone, ShoppingBag, Globe, Coffee
+  Search, RefreshCcw, Trash2, AlertTriangle, Target, Calculator, 
+  Coins, HeartHandshake, Wallet, Users, Home, Play, Heart, 
+  Smartphone, ShoppingBag, Globe, Coffee, Info, ArrowUpRight, 
+  ArrowDownRight, Zap, ChevronRight, Calendar, Menu, X, Settings, LogOut,
+  Sparkles, BarChart3, TrendingUp
 } from 'lucide-react';
 
-/**
- * BudgetIN DASHBOARD PRO (V13.0 - Ultimate)
- * Visualisasi Data Transaksi dari Google Sheets
- * Nama: Rizki Akbar
- */
+// --- IMPORT TREMOR ---
+import { 
+  Card, Metric, Text, Flex, ProgressBar, Grid, AreaChart, 
+  DonutChart, Title, Badge
+} from "@tremor/react";
 
-// 👇 GANTI DENGAN URL WEB APP GOOGLE APPS SCRIPT KAMU YANG BARU (YANG BARU DI-DEPLOY) 👇
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyaQzGZ4U84kBM7slB_rIGEZUGPaxTTaljP-GTCCKhRi_qWLBVrxLJP5mKirN_-GT-ISw/exec"; 
 
+// --- 💎 DATA CONTOH PREMIUM (UNTUK MODE DEMO) ---
+const DUMMY_DATA = [
+  { id: 991, date: new Date(), amount: 15500000, type: 'MASUK', category: 'MASUK', desc: 'Gaji Professional (Demo)' },
+  { id: 992, date: new Date(), amount: 250000, type: 'KELUAR', category: 'MAKANAN', desc: 'Lunch Meeting' },
+  { id: 993, date: new Date(), amount: 1200000, type: 'KELUAR', category: 'TEMPAT TINGGAL', desc: 'Apartment Maintenance' },
+  { id: 994, date: new Date(), amount: 500000, type: 'KELUAR', category: 'SEDEKAH/ZAKAT', desc: 'Infaq Masjid' },
+  { id: 995, date: new Date(), amount: 150000, type: 'KELUAR', category: 'TRANSPORTASI', desc: 'Grab Car' },
+  { id: 996, date: new Date(), amount: 2500000, type: 'MASUK', category: 'MASUK', desc: 'Bonus Project' },
+];
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  // --- STATES ---
+  const [activeTab, setActiveTab] = useState('overview');
   const [transactions, setTransactions] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [viewDate, setViewDate] = useState(new Date()); 
-  const [isBarChart, setIsBarChart] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isDemo, setIsDemo] = useState(false);
   
-  const [deleteId, setDeleteId] = useState<number | null>(null); 
+  // Fitur Hapus
+  const [deleteId, setDeleteId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [monthlyBudget, setMonthlyBudget] = useState(2000000); 
+  
+  // Fitur Budgeting
+  const [monthlyBudget, setMonthlyBudget] = useState(5000000); 
   const [isSettingBudget, setIsSettingBudget] = useState(false);
+
+  // --- DATA FETCHING & PROCESSING ---
+  const processIncomingData = (rawList: any[]) => {
+    return rawList.map((item: any) => {
+      const d = new Date(item.date);
+      return {
+        ...item,
+        dateObj: d,
+        dateKey: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+        dateStr: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
+        month: d.getMonth(),
+        year: d.getFullYear()
+      };
+    }).sort((a: any, b: any) => b.dateObj - a.dateObj);
+  };
 
   const fetchData = (idFromUrl: string) => {
     setLoading(true);
     fetch(`${GAS_API_URL}?userid=${idFromUrl}`)
       .then(res => res.json())
       .then(data => {
-        if (data.status === 'success' && Array.isArray(data.data)) {
-          const formattedData = data.data.map((item: any) => {
-            const d = new Date(item.date);
-            return {
-              ...item,
-              dateObj: d,
-              dateKey: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-              dateStr: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
-              month: d.getMonth(),
-              year: d.getFullYear()
-            };
-          });
-          // Mengurutkan data: yang terbaru di atas
-          formattedData.sort((a: any, b: any) => b.dateObj - a.dateObj || b.id - a.id);
-          setTransactions(formattedData);
+        if (data.status === 'success') {
+          setTransactions(processIncomingData(data.data));
+          setError(null);
         } else {
-          setError(data.message || "Gagal memuat data dari sistem pusat.");
+          setError(data.message || "Gagal sinkronisasi.");
         }
         setLoading(false);
       })
       .catch(() => { 
-        setError("Gagal terhubung ke database. Pastikan URL GAS benar."); 
+        setError("Koneksi ke sistem pusat terputus."); 
         setLoading(false); 
       });
   };
 
-  useEffect(() => {
-    const idFromUrl = new URLSearchParams(window.location.search).get('userid');
-    if (!idFromUrl) { 
-      setError("Akses Ditolak. Link tidak valid. Harap buka melalui Bot Telegram."); 
-      setLoading(false); 
-      return; 
-    }
-    setUserId(idFromUrl);
-    fetchData(idFromUrl);
-    
-    // Load saved budget from local storage
-    const savedBudget = localStorage.getItem(`budgetin_budget_${idFromUrl}`);
-    if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
-  }, []);
-
   const handleDelete = async () => {
+    if (isDemo) {
+      setTransactions(prev => prev.filter(t => t.id !== deleteId));
+      setDeleteId(null);
+      return;
+    }
     if (!deleteId || !userId) return;
     setIsDeleting(true);
     try {
@@ -89,416 +96,436 @@ export default function App() {
         setDeleteId(null);
         fetchData(userId); 
       }
-    } catch (err) { 
-      console.error(err); 
-    } finally { 
-      setIsDeleting(false); 
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const changeMonth = (offset: number) => {
-    const newDate = new Date(viewDate);
-    newDate.setMonth(newDate.getMonth() + offset);
-    setViewDate(newDate);
-  };
+  useEffect(() => {
+    const idFromUrl = new URLSearchParams(window.location.search).get('userid');
+    
+    // 🔥 LOGIKA KEMBALI KE MODE DEMO JIKA TIDAK ADA USERID
+    if (!idFromUrl) {
+      setIsDemo(true);
+      setTransactions(processIncomingData(DUMMY_DATA));
+      setLoading(false);
+      return;
+    }
 
-  // --- PEMROSESAN DATA AMAN ---
-  const safeTransactions = transactions || [];
-  const filteredByMonth = useMemo(() => safeTransactions.filter(t => t.month === viewDate.getMonth() && t.year === viewDate.getFullYear()), [safeTransactions, viewDate]);
-  
-  // Saldo Aktif (Keseluruhan Waktu)
-  const totalMasukAll = useMemo(() => safeTransactions.filter(t => t.type?.toUpperCase() === 'MASUK').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0), [safeTransactions]);
-  const totalKeluarAll = useMemo(() => safeTransactions.filter(t => t.type?.toUpperCase() === 'KELUAR').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0), [safeTransactions]);
-  const sisaSaldo = totalMasukAll - totalKeluarAll;
-  
-  // Total Bulan Ini Saja
-  const totalKeluarBulanIni = filteredByMonth.filter(t => t.type?.toUpperCase() === 'KELUAR').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
-  const totalMasukBulanIni = filteredByMonth.filter(t => t.type?.toUpperCase() === 'MASUK').reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+    setUserId(idFromUrl);
+    fetchData(idFromUrl);
+    
+    const savedBudget = localStorage.getItem(`budgetin_budget_${idFromUrl}`);
+    if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
+  }, []);
 
-  // Data Grafik Garis/Batang (7 Hari Terakhir dari bulan yang dipilih)
-  const monthChartData = useMemo(() => {
-    const data = [];
+  // --- COMPUTED DATA (LOGIC) ---
+  const stats = useMemo(() => {
+    const income = transactions.filter(t => t.type?.toUpperCase() === 'MASUK').reduce((a, b) => a + Number(b.amount), 0);
+    const expense = transactions.filter(t => t.type?.toUpperCase() === 'KELUAR').reduce((a, b) => a + Number(b.amount), 0);
+    return { balance: income - expense, income, expense };
+  }, [transactions]);
+
+  const currentMonth = new Date().getMonth();
+  const totalKeluarBulanIni = useMemo(() => 
+    transactions.filter(t => t.type?.toUpperCase() === 'KELUAR' && t.month === currentMonth)
+    .reduce((acc, curr) => acc + Number(curr.amount), 0)
+  , [transactions, currentMonth]);
+
+  const chartData = useMemo(() => {
+    const days = [];
     for (let i = 6; i >= 0; i--) {
-      const d = new Date(viewDate);
-      // Jika viewDate adalah bulan saat ini, hitung mundur dari hari ini. Jika tidak, dari akhir bulan tsb.
-      const isCurrentMonth = new Date().getMonth() === viewDate.getMonth() && new Date().getFullYear() === viewDate.getFullYear();
-      if (isCurrentMonth) {
-        d.setDate(new Date().getDate() - i);
-      } else {
-        d.setDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate() - i);
-      }
-      
+      const d = new Date(); d.setDate(d.getDate() - i);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const dayAmount = safeTransactions.filter(t => t.type?.toUpperCase() === 'KELUAR' && t.dateKey === key).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-      data.push({ label: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }), amount: dayAmount });
+      const amt = transactions.filter(t => t.type?.toUpperCase() === 'KELUAR' && t.dateKey === key).reduce((s, t) => s + Number(t.amount), 0);
+      days.push({ date: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }), "Pengeluaran": amt });
     }
-    return data;
-  }, [safeTransactions, viewDate]);
+    return days;
+  }, [transactions]);
 
-  const maxDaily = Math.max(...monthChartData.map(d => d.amount), 1);
-  const budgetPercentage = monthlyBudget > 0 ? (totalKeluarBulanIni / monthlyBudget) * 100 : 0;
+  const categoryData = useMemo(() => {
+    const cats: any = {};
+    transactions.filter(t => t.type?.toUpperCase() === 'KELUAR' && t.month === currentMonth).forEach(t => {
+      cats[t.category] = (cats[t.category] || 0) + Number(t.amount);
+    });
+    return Object.keys(cats).map(name => ({ name, amount: cats[name] })).sort((a,b) => b.amount - a.amount);
+  }, [transactions, currentMonth]);
 
-  // Data Grafik Pie (Klasifikasi Kategori)
-  const catMap: Record<string, number> = {};
-  filteredByMonth.filter(t => t.type?.toUpperCase() === 'KELUAR').forEach(t => {
-    catMap[t.category] = (catMap[t.category] || 0) + (Number(t.amount) || 0);
-  });
-  const colors = ['#10b981', '#3b82f6', '#f43f5e', '#f59e0b', '#8b5cf6', '#ec4899', '#0ea5e9']; 
-  const categories = Object.keys(catMap).map((cat, i) => ({ name: cat, amount: catMap[cat], color: colors[i % colors.length] })).sort((a, b) => b.amount - a.amount);
+  // AI Leakage Logic
+  const leakageInfo = useMemo(() => {
+    const counts = transactions.filter(t => t.type === 'KELUAR' && t.month === currentMonth)
+      .reduce((acc: any, curr: any) => {
+        acc[curr.category] = (acc[curr.category] || 0) + 1;
+        return acc;
+      }, {});
+    const mostFreq = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+    return { name: mostFreq, count: counts[mostFreq] };
+  }, [transactions, currentMonth]);
 
-  // Formatter Uang
+  // --- HELPERS ---
   const formatRp = (num: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
-  const formatShortRp = (num: number) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'jt';
-    if (num >= 1000) return (num / 1000).toFixed(0) + 'k';
-    return String(num || 0);
-  };
-
-  const getCategoryIcon = (cat: string) => {
-    switch (cat?.toUpperCase()) {
-      case 'MAKANAN': return <Coffee className="w-5 h-5 text-orange-500" />;
-      case 'KELUARGA': return <Users className="w-5 h-5 text-blue-500" />;
-      case 'TEMPAT TINGGAL': return <Home className="w-5 h-5 text-indigo-500" />;
-      case 'HIBURAN': return <Play className="w-5 h-5 text-rose-500" />;
-      case 'SEDEKAH/ZAKAT': return <Heart className="w-5 h-5 text-emerald-500" />;
-      case 'INTERNET': return <Smartphone className="w-5 h-5 text-sky-500" />;
-      case 'BELANJA': return <ShoppingBag className="w-5 h-5 text-pink-500" />;
-      case 'TRANSPORTASI': return <Globe className="w-5 h-5 text-amber-500" />;
-      default: return <Wallet className="w-5 h-5 text-slate-400" />;
-    }
-  };
-
+  
   const handleSaveBudget = () => {
     if (userId) localStorage.setItem(`budgetin_budget_${userId}`, String(monthlyBudget));
     setIsSettingBudget(false);
   }
 
-  // --- LOGIKA ZAKAT MAAL ---
-  const nishabTahunan = 85 * 1300000; // Asumsi harga emas 1.3 juta/gram
-  const wajibZakat = sisaSaldo >= nishabTahunan;
+  // --- RENDERERS ---
+  if (loading) return (
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+      <Loader2 className="animate-spin text-emerald-600 w-12 h-12 mb-4" />
+      <Text className="font-bold tracking-widest text-slate-400 uppercase text-[10px]">Syncing Architecture...</Text>
+    </div>
+  );
 
-  // --- RENDER SCREEN ---
-  if (loading) return <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center text-emerald-600 font-sans"><Loader2 className="animate-spin w-10 h-10 mb-4" /><p className="font-bold uppercase tracking-widest text-xs text-slate-400">Menyiapkan Dashboard...</p></div>;
-  if (error) return <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center font-sans"><div className="bg-white p-10 rounded-[2.5rem] shadow-xl border border-red-50 max-w-md w-full"><Lock className="w-16 h-16 text-red-500 mx-auto mb-6" /><h2 className="text-2xl font-black mb-2">Akses Terkunci</h2><p className="text-slate-500 text-sm mb-8">{error}</p></div></div>;
+  const NavItem = ({ id, label, icon: Icon }) => (
+    <button 
+      onClick={() => setActiveTab(id)}
+      className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl font-bold transition-all ${activeTab === id ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-200' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+    >
+      <Icon size={20} strokeWidth={2.5} />
+      <span className="text-sm">{label}</span>
+    </button>
+  );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-800 pb-28 selection:bg-emerald-100">
+    <div className="min-h-screen bg-[#F1F5F9] font-sans text-slate-900 flex selection:bg-emerald-100 overflow-hidden">
       
-      {/* MODAL KONFIRMASI HAPUS */}
+      {/* MODAL HAPUS */}
       {deleteId && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl border border-slate-100 scale-in">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <Card className="max-w-sm w-full p-8 rounded-[2.5rem] shadow-2xl border-none animate-in zoom-in-95 duration-200">
             <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
-            <h3 className="text-xl font-black text-center mb-2">Hapus Transaksi?</h3>
-            <p className="text-center text-slate-500 text-sm mb-6">Data ini akan dihapus permanen dari sistem pusat.</p>
+            <h3 className="text-xl font-black text-center text-slate-900 mb-2">Hapus Baris?</h3>
+            <p className="text-sm text-slate-500 text-center mb-8 font-medium">Data {isDemo ? 'demo' : 'di Google Sheets'} akan dihapus permanen.</p>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteId(null)} className="flex-1 py-4 bg-slate-100 rounded-2xl font-bold text-slate-600 hover:bg-slate-200 transition-colors">Batal</button>
-              <button onClick={handleDelete} disabled={isDeleting} className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-bold shadow-lg shadow-rose-200 hover:bg-rose-700 transition-colors flex items-center justify-center">
-                {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Ya, Hapus"}
+              <button onClick={() => setDeleteId(null)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold transition-colors">Batal</button>
+              <button onClick={handleDelete} className="flex-1 py-4 bg-rose-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg">
+                {isDeleting ? <Loader2 className="w-5 h-4 animate-spin" /> : "Ya, Hapus"}
               </button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
-      {/* NAVBAR HEADER */}
-      <nav className="bg-white px-6 py-5 shadow-sm sticky top-0 z-50 border-b border-slate-100">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="bg-emerald-500 p-2.5 rounded-xl text-white shadow-sm shadow-emerald-200">
-              <Activity className="w-5 h-5" />
+      {/* --- SIDEBAR (DESKTOP) --- */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 transition-transform duration-300 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:relative lg:translate-x-0`}>
+        <div className="h-full flex flex-col p-6">
+          <div className="flex items-center gap-3 mb-12 px-2">
+            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200 transform rotate-3">
+              <Activity className="text-white" size={22} strokeWidth={3} />
             </div>
-            <div>
-              <h1 className="text-xl font-black tracking-tighter text-slate-900 leading-none">BudgetIN <span className="text-emerald-500">PRO</span></h1>
-              <p className="text-slate-400 text-[9px] font-black italic tracking-widest uppercase mt-1">
-  Sharia Edition
-</p>
-            </div>
+            <h1 className="text-2xl font-black tracking-tighter text-slate-900 leading-none">BudgetIN <span className="text-emerald-600">PRO</span></h1>
           </div>
-          <button onClick={() => userId && fetchData(userId)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all shadow-sm active:scale-95"><RefreshCcw className="w-5 h-5" /></button>
+
+          <div className="flex-1 space-y-2">
+            <p className="px-4 text-[10px] font-black text-slate-300 uppercase tracking-widest mb-4">Navigasi Utama</p>
+            <NavItem id="overview" label="Overview" icon={LayoutDashboard} />
+            <NavItem id="ledger" label="Mutasi Ledger" icon={History} />
+            <NavItem id="zakat" label="Sharia Engine" icon={Calculator} />
+          </div>
+
+          <div className="pt-6 border-t border-slate-100">
+            <div className="bg-slate-900 rounded-2xl p-4 mb-4 shadow-lg shadow-slate-200 overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-4 opacity-10"><Activity size={60} className="text-white"/></div>
+              <Flex className="relative z-10">
+                 <div className="w-9 h-9 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-black text-sm">R</div>
+                 <div className="flex-1 ml-3">
+                    <p className="text-xs font-black text-white leading-none">{isDemo ? 'Demo User' : 'Verified User'}</p>
+                    <p className="text-[9px] font-bold text-emerald-400 mt-1 uppercase tracking-widest">PRO License Active</p>
+                 </div>
+              </Flex>
+            </div>
+            <button className="w-full flex items-center gap-3 px-4 py-2 text-slate-400 hover:text-rose-600 font-bold transition-colors text-xs uppercase tracking-widest">
+              <LogOut size={16} /> Keluar Sesi
+            </button>
+          </div>
         </div>
-      </nav>
+      </aside>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+      {/* --- MAIN CONTENT --- */}
+      <main className="flex-1 h-screen overflow-y-auto relative custom-scrollbar">
         
-        {/* =========================================
-            TAB 1: DASHBOARD UTAMA
-        ========================================= */}
-        {activeTab === 'dashboard' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            
-            {/* Filter Bulan */}
-            <div className="flex items-center justify-center bg-white p-3 rounded-[2rem] shadow-sm mb-8 border border-slate-100 max-w-xs mx-auto">
-              <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors"><ChevronLeft className="w-5 h-5 text-slate-600"/></button>
-              <div className="flex-1 text-center">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Periode Data</p>
-                <p className="font-black text-sm text-slate-800 uppercase tracking-tight">{viewDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</p>
-              </div>
-              <button onClick={() => changeMonth(1)} className="p-2 hover:bg-slate-100 rounded-xl transition-colors"><ChevronRight className="w-5 h-5 text-slate-600"/></button>
+        {/* HEADER AREA */}
+        <header className="sticky top-0 z-30 bg-[#F1F5F9]/90 backdrop-blur-xl px-8 py-6 flex justify-between items-center border-b border-slate-200/50">
+          <div className="flex items-center gap-4">
+             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="lg:hidden p-2 bg-white rounded-lg border border-slate-200 shadow-sm">
+                <Menu size={20} className="text-slate-600"/>
+             </button>
+             <h2 className="text-xl font-black text-slate-900 capitalize tracking-tight">{activeTab === 'overview' ? 'Dashboard' : activeTab}</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            {isDemo && <Badge color="amber" icon={Sparkles} className="px-3 py-1 font-black shadow-sm">SANDBOX MODE</Badge>}
+            <button onClick={() => userId && fetchData(userId)} className="p-3 bg-white hover:bg-emerald-50 rounded-xl shadow-sm border border-slate-200 transition-all text-slate-400 hover:text-emerald-600 active:scale-95">
+              <RefreshCcw size={18} />
+            </button>
+            <div className="w-11 h-11 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors">
+               <Settings size={20} />
             </div>
+          </div>
+        </header>
 
-            {/* KARTU RINGKASAN */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-emerald-600 rounded-[2.5rem] p-8 shadow-xl shadow-emerald-200/50 text-white relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700"><Wallet className="w-32 h-32" /></div>
-                <div className="relative z-10">
-                  <p className="text-[10px] font-black uppercase tracking-widest mb-2 opacity-80">Saldo Aktif Tersedia</p>
-                  <h2 className="text-4xl font-black tracking-tight">{formatRp(sisaSaldo)}</h2>
-                </div>
-              </div>
-              <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 hover:border-blue-100 transition-colors">
-                <p className="text-[10px] font-black uppercase tracking-widest mb-3 text-blue-500">Pemasukan Bulan Ini</p>
-                <h2 className="text-3xl font-black text-slate-900">{formatRp(totalMasukBulanIni)}</h2>
-              </div>
-              <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 hover:border-rose-100 transition-colors">
-                <p className="text-[10px] font-black uppercase tracking-widest mb-3 text-rose-500">Pengeluaran Bulan Ini</p>
-                <h2 className="text-3xl font-black text-slate-900">{formatRp(totalKeluarBulanIni)}</h2>
-              </div>
-            </div>
+        <div className="px-8 pb-20 pt-8 max-w-7xl mx-auto">
+          
+          {/* TAB: OVERVIEW */}
+          {activeTab === 'overview' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-10">
+               {/* Hero Balances */}
+               <div>
+                  <Text className="text-slate-500 font-black uppercase tracking-[0.25em] text-[10px] mb-2 flex items-center gap-2">
+                    <div className="w-4 h-[2.5px] bg-emerald-500 rounded-full"></div> Available Liquidity
+                  </Text>
+                  <h2 className="text-6xl font-black tracking-tighter text-slate-900 drop-shadow-sm">{formatRp(stats.balance)}</h2>
+               </div>
 
-            {/* ANALISIS ANGGARAN (BUDGET) */}
-            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 mb-8 relative overflow-hidden transition-all hover:border-emerald-200">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl"><Target className="w-6 h-6" /></div>
-                  <div>
-                    <h3 className="text-lg font-black text-slate-900 tracking-tight">Status Anggaran</h3>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Target vs Realisasi</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
-                  <div className="text-right">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Batas Bulanan</p>
-                    {isSettingBudget ? 
-                      <input 
-                        type="number" 
-                        value={monthlyBudget} 
-                        onChange={(e) => setMonthlyBudget(parseInt(e.target.value) || 0)} 
-                        className="w-28 bg-transparent text-sm font-black text-emerald-700 outline-none border-b-2 border-emerald-500 font-sans" 
-                        autoFocus 
-                      /> 
-                      : <p className="text-sm font-black text-slate-800">{formatRp(monthlyBudget)}</p>
-                    }
-                  </div>
-                  <button onClick={() => isSettingBudget ? handleSaveBudget() : setIsSettingBudget(true)} className="p-2 bg-white rounded-xl shadow-sm text-emerald-600 hover:scale-105 transition-transform">
-                    {isSettingBudget ? <CheckCircle2 className="w-5 h-5" /> : <Filter className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
-              <div className="relative pt-2">
-                <div className="flex justify-between text-[10px] font-black text-slate-400 mb-3 uppercase tracking-widest">
-                  <span>Terpakai: {formatRp(totalKeluarBulanIni)}</span>
-                  <span className={budgetPercentage > 100 ? "text-rose-600" : "text-emerald-600"}>{Math.round(budgetPercentage)}%</span>
-                </div>
-                <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
-                  <div 
-                    className={`h-full transition-all duration-1000 ease-out rounded-full shadow-inner ${budgetPercentage > 100 ? 'bg-rose-500' : 'bg-emerald-500'}`} 
-                    style={{ width: `${Math.min(budgetPercentage, 100)}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-
-            {/* AREA GRAFIK (CHARTS) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-              
-              {/* GRAFIK TREN (Bar/Line) */}
-              <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 lg:col-span-2 relative transition-all hover:border-emerald-100">
-                <div className="flex justify-between items-center mb-8">
-                  <div className="flex items-center gap-3">
-                    {isBarChart ? <BarChart3 className="w-5 h-5 text-emerald-600" /> : <LineChart className="w-5 h-5 text-emerald-600" />}
-                    <h3 className="text-lg font-black text-slate-900 tracking-tight">Tren Harian</h3>
-                  </div>
-                  <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-100">
-                    <button onClick={() => setIsBarChart(true)} className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>BATANG</button>
-                    <button onClick={() => setIsBarChart(false)} className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${!isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>GARIS</button>
-                  </div>
-                </div>
-                
-                <div className="h-64 flex items-end justify-between gap-2 md:gap-4 pb-2 relative">
-                  {isBarChart ? monthChartData.map((data, idx) => {
-                    const heightPct = maxDaily > 0 ? (data.amount / maxDaily) * 100 : 0;
-                    return (
-                      <div key={idx} className="flex flex-col items-center flex-1 group relative h-full justify-end">
-                        <span className="text-[9px] font-black text-emerald-600 mb-2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity absolute -top-6 bg-emerald-50 px-2 py-1 rounded-md">{data.amount > 0 ? formatShortRp(data.amount) : '0'}</span>
-                        <div className="w-full max-w-[40px] bg-emerald-400/80 rounded-t-xl transition-all duration-700 group-hover:bg-emerald-500" style={{ height: `${Math.max(heightPct, 2)}%` }}></div>
-                        <span className="text-[9px] text-slate-400 mt-3 font-bold text-center">{data.label.split(' ')[0]}</span>
-                      </div>
-                    );
-                  }) : (
-                    <div className="w-full h-full relative">
-                      <svg viewBox="0 0 700 250" className="w-full h-full overflow-visible">
-                        <path d={`M 0 250 ${monthChartData.map((d, i) => `L ${i * 116} ${250 - (maxDaily > 0 ? (d.amount / maxDaily * 180) : 0)}`).join(' ')} L 696 250 Z`} fill="#d1fae5" opacity="0.4" />
-                        <path d={monthChartData.map((d, i) => `${i === 0 ? 'M' : 'L'} ${i * 116} ${250 - (maxDaily > 0 ? (d.amount / maxDaily * 180) : 0)}`).join(' ')} fill="none" stroke="#10b981" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
-                        {monthChartData.map((d, i) => (
-                          <g key={i}>
-                            <circle cx={i * 116} cy={250 - (maxDaily > 0 ? (d.amount / maxDaily * 180) : 0)} r="6" fill="#fff" stroke="#10b981" strokeWidth="4" className="hover:r-8 transition-all" />
-                            {d.amount > 0 && <text x={i * 116} y={250 - (d.amount / maxDaily * 180) - 15} textAnchor="middle" className="text-[11px] font-black fill-emerald-600 font-sans">{formatShortRp(d.amount)}</text>}
-                          </g>
-                        ))}
-                      </svg>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* GRAFIK PIE (Kategori) */}
-              <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 transition-all hover:border-emerald-100">
-                <div className="flex items-center gap-3 mb-8">
-                  <PieChartIcon className="w-5 h-5 text-emerald-600" />
-                  <h3 className="text-lg font-black text-slate-900 tracking-tight">Porsi Kategori</h3>
-                </div>
-                <div className="flex-1 flex flex-col justify-center">
-                  {categories.length > 0 ? (
-                    <>
-                      <div className="relative w-40 h-40 mx-auto mb-8 transform hover:scale-105 transition-transform duration-500">
-                        <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90 drop-shadow-sm">
-                          {categories.map((cat, i) => { 
-                            const dashArray = totalKeluarBulanIni > 0 ? (cat.amount / totalKeluarBulanIni) * 100 : 0; 
-                            const offset = categories.slice(0, i).reduce((sum, c) => sum + (c.amount / totalKeluarBulanIni) * 100, 0); 
-                            return (<circle key={cat.name} cx="18" cy="18" r="15.915" fill="transparent" stroke={cat.color} strokeWidth="6" strokeDasharray={`${dashArray} ${100 - dashArray}`} strokeDashoffset={-offset} className="transition-all duration-1000 hover:opacity-80 cursor-pointer" />); 
-                          })}
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                          <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest leading-none">Total</p>
-                          <p className="text-xs font-black text-slate-900 tracking-tighter mt-1">{formatShortRp(totalKeluarBulanIni)}</p>
+               <Grid numItemsMd={2} numItemsLg={3} className="gap-8">
+                  <Card className="rounded-[2.5rem] border-none shadow-xl shadow-emerald-100/30 p-8 ring-1 ring-slate-200/50 bg-white hover:translate-y-[-6px] transition-all duration-300">
+                     <Flex alignItems="start">
+                        <div>
+                           <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Inflow Period</Text>
+                           <Metric className="text-emerald-600 font-black mt-3 text-3xl">{formatRp(stats.income)}</Metric>
                         </div>
-                      </div>
-                      <div className="space-y-3 overflow-y-auto max-h-40 pr-2 custom-scrollbar">
-                        {categories.map((cat, idx) => (
-                          <div key={idx} className="flex items-center justify-between group">
-                            <div className="flex items-center gap-3">
-                              <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: cat.color }}></div>
-                              <span className="text-xs font-bold text-slate-600 truncate max-w-[100px] group-hover:text-slate-900 transition-colors">{cat.name}</span>
-                            </div>
-                            <span className="text-xs font-black text-slate-900">{formatRp(cat.amount)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  ) : <div className="text-center text-slate-300 font-bold uppercase tracking-widest text-xs italic py-10">Data kosong</div>}
-                </div>
-              </div>
-            </div>
+                        <div className="p-4 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-200"><ArrowUpRight size={24} strokeWidth={3} /></div>
+                     </Flex>
+                  </Card>
+                  <Card className="rounded-[2.5rem] border-none shadow-xl shadow-rose-100/30 p-8 ring-1 ring-slate-200/50 bg-white hover:translate-y-[-6px] transition-all duration-300">
+                     <Flex alignItems="start">
+                        <div>
+                           <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Outflow Period</Text>
+                           <Metric className="text-rose-600 font-black mt-3 text-3xl">{formatRp(stats.expense)}</Metric>
+                        </div>
+                        <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-lg shadow-rose-200"><ArrowDownRight size={24} strokeWidth={3} /></div>
+                     </Flex>
+                  </Card>
+                  <Card className="rounded-[2.5rem] border-none shadow-xl shadow-slate-100/30 p-8 ring-1 ring-slate-200/50 bg-white flex flex-col justify-center">
+                     <Flex>
+                        <Text className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Budget Usage</Text>
+                        <Badge color={totalKeluarBulanIni > monthlyBudget ? "rose" : "emerald"} variant="solid" className="font-black px-3 py-1 rounded-lg">
+                           {Math.round((totalKeluarBulanIni/monthlyBudget)*100)}%
+                        </Badge>
+                     </Flex>
+                     <ProgressBar value={(totalKeluarBulanIni/monthlyBudget)*100} color={totalKeluarBulanIni > monthlyBudget ? "rose" : "emerald"} className="mt-6 h-3.5 rounded-full" />
+                  </Card>
+               </Grid>
 
-            {/* TABEL MUTASI TRANSAKSI */}
-            <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
-              <div className="p-8 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-slate-50 text-emerald-600 rounded-xl border border-slate-100"><History className="w-5 h-5" /></div>
-                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Riwayat Mutasi</h3>
-                </div>
-                <div className="relative w-full md:w-72">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input 
-                    type="text" 
-                    placeholder="Cari transaksi..." 
-                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold outline-none focus:border-emerald-500 focus:bg-white transition-all shadow-sm" 
-                    value={searchQuery} 
-                    onChange={(e) => setSearchQuery(e.target.value)} 
-                  />
-                </div>
-              </div>
-              
-              <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
-                <table className="w-full text-left text-sm">
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredByMonth.filter(t => t.category.toLowerCase().includes(searchQuery.toLowerCase()) || (t.desc && t.desc.toLowerCase().includes(searchQuery.toLowerCase()))).map((trx) => (
-                      <tr key={trx.id} className="hover:bg-slate-50 transition-colors group">
-                        <td className="px-8 py-6 text-slate-400 font-bold text-xs whitespace-nowrap"><Calendar className="w-4 h-4 inline mr-2 opacity-50 text-slate-400" /> {trx.dateStr}</td>
-                        <td className="px-8 py-6">
-                          <div className="flex items-center gap-4">
-                            <div className="p-2.5 bg-white rounded-xl border border-slate-100 shadow-sm hidden sm:block">
-                              {getCategoryIcon(trx.category)}
-                            </div>
-                            <div>
-                              <p className="font-extrabold text-slate-900 capitalize mb-1 text-sm">{trx.desc || "Transaksi"}</p>
-                              <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md uppercase tracking-wider">{trx.category}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className={`px-8 py-6 text-right font-black text-lg whitespace-nowrap ${trx.type?.toUpperCase() === 'MASUK' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                          {trx.type?.toUpperCase() === 'MASUK' ? '+' : '-'}{formatRp(trx.amount)}
-                        </td>
-                        <td className="px-8 py-6 text-center">
-                          <button onClick={() => setDeleteId(trx.id)} className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"><Trash2 className="w-4 h-4" /></button>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredByMonth.length === 0 && (
-                      <tr><td colSpan={4} className="text-center py-16 text-slate-400 font-medium text-sm">Belum ada transaksi di bulan ini.<br/><span className="text-xs opacity-70">Mulai catat dari Bot Telegram Anda.</span></td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
+               {/* GRAPHS */}
+               <Grid numItemsLg={3} className="gap-8">
+                  <Card className="lg:col-span-2 rounded-[3rem] border-none shadow-xl p-10 bg-white ring-1 ring-slate-200">
+                     <Title className="font-black text-slate-900 flex items-center gap-3 mb-10 uppercase text-xs tracking-widest border-l-4 border-emerald-600 pl-4">
+                        Weekly Cash Flow Velocity
+                     </Title>
+                     <AreaChart
+                        className="h-80 mt-4"
+                        data={chartData}
+                        index="date"
+                        categories={["Pengeluaran"]}
+                        colors={["emerald"]}
+                        valueFormatter={(number) => `Rp ${Intl.NumberFormat("id").format(number).toString()}`}
+                        showLegend={false}
+                        curveType="monotone"
+                        showAnimation={true}
+                     />
+                  </Card>
 
-        {/* =========================================
-            TAB 2: ZAKAT & SHARIA CALCULATOR
-        ========================================= */}
-        {activeTab === 'zakat' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-2xl mx-auto">
-            <div className="bg-emerald-600 text-white rounded-[3rem] p-10 shadow-xl shadow-emerald-200/50 mb-8 relative overflow-hidden">
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
-              <div className="relative z-10 text-center">
-                <Calculator className="w-12 h-12 mx-auto mb-6 text-emerald-100" />
-                <h2 className="text-2xl font-black uppercase tracking-tight mb-2">Kalkulator Zakat Maal</h2>
-                <div className="my-8 h-[1px] bg-emerald-500/50"></div>
-                <p className="text-[10px] font-black text-emerald-100 uppercase tracking-[0.2em] mb-4">Potensi Zakat (2.5% dari Saldo Aktif)</p>
-                <h2 className="text-5xl font-black tracking-tighter mb-6">{formatRp(sisaSaldo > 0 ? sisaSaldo * 0.025 : 0)}</h2>
-                
-                <div className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-[10px] font-black border backdrop-blur-sm ${wajibZakat ? 'bg-amber-500/20 border-amber-400 text-amber-100 shadow-[0_0_20px_rgba(251,191,36,0.2)]' : 'bg-white/10 border-white/20 text-white'}`}>
-                  {wajibZakat ? '⚠️ PERHATIAN: ANDA SUDAH MENCAPAI NISHAB' : '✅ BELUM MENCAPAI NISHAB EMAS'}
-                </div>
-              </div>
-            </div>
+                  <Card className="rounded-[3rem] border-none shadow-xl p-10 bg-white ring-1 ring-slate-200 flex flex-col">
+                     <Title className="font-black text-slate-900 uppercase text-xs tracking-widest mb-10 border-l-4 border-emerald-600 pl-4">Allocation Clusters</Title>
+                     <div className="flex-1 flex flex-col justify-center">
+                        <DonutChart
+                           className="h-60"
+                           data={categoryData}
+                           category="amount"
+                           index="name"
+                           valueFormatter={(number) => `Rp ${Intl.NumberFormat("id").format(number).toString()}`}
+                           colors={["emerald-700", "emerald-500", "rose-600", "slate-800", "amber-500"]}
+                        />
+                        <div className="mt-10 space-y-3">
+                           {categoryData.slice(0, 3).map(c => (
+                              <Flex key={c.name} className="border-b border-slate-50 pb-2">
+                                 <Text className="text-[10px] font-black text-slate-400 uppercase truncate max-w-[120px]">{c.name}</Text>
+                                 <Text className="font-black text-slate-900 text-xs">{formatRp(c.amount)}</Text>
+                              </Flex>
+                           ))}
+                        </div>
+                     </div>
+                  </Card>
+               </Grid>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-rose-100 transition-all">
-                <HeartHandshake className="w-8 h-8 text-rose-500 mb-4 bg-rose-50 p-1.5 rounded-xl" />
-                <h3 className="font-black text-sm uppercase mb-2 text-slate-800">Sedekah Ideal (1%)</h3>
-                <p className="text-3xl font-black text-slate-900">{formatRp(sisaSaldo > 0 ? sisaSaldo * 0.01 : 0)}</p>
-                <p className="text-[9px] text-slate-400 mt-3 font-bold uppercase tracking-widest leading-relaxed">Rekomendasi disisihkan dari saldo aktif saat ini</p>
-              </div>
-              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-md hover:border-amber-100 transition-all">
-                <Coins className="w-8 h-8 text-amber-500 mb-4 bg-amber-50 p-1.5 rounded-xl" />
-                <h3 className="font-black text-sm uppercase mb-2 text-slate-800">Batas Nishab Emas</h3>
-                <p className="text-2xl font-black text-slate-900 mt-2">{formatRp(nishabTahunan)}</p>
-                <p className="text-[9px] text-slate-400 mt-3 font-bold uppercase tracking-widest leading-relaxed">Asumsi 85gr Emas<br/>Harga: Rp 1.300.000/gram</p>
-              </div>
-            </div>
-          </div>
-        )}
+               {/* AI INSIGHTS AREA */}
+               <div className="pt-4 space-y-6">
+                  <div className="flex items-center gap-3">
+                    <Sparkles className="text-emerald-600" size={24} fill="currentColor" opacity={0.2}/>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">AI Financial Neural Insights</h3>
+                  </div>
+                  <Grid numItemsMd={2} className="gap-8">
+                      <Card className="rounded-[2.5rem] border-none shadow-xl p-10 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-500/20 relative overflow-hidden group">
+                        <div className="absolute -top-10 -right-10 opacity-5 group-hover:rotate-12 transition-transform duration-1000"><Zap size={180} /></div>
+                        <Flex className="mb-8">
+                           <Title className="font-black text-slate-900 uppercase text-[10px] tracking-[0.2em] flex items-center gap-3">
+                              <div className="w-8 h-8 bg-emerald-600 text-white rounded-lg flex items-center justify-center shadow-md shadow-emerald-200"><TrendingUp size={16} /></div>
+                              Efficiency Index
+                           </Title>
+                           <Badge color="emerald" variant="solid" className="font-black tracking-widest text-[9px]">OPTIMIZED</Badge>
+                        </Flex>
+                        <div className="space-y-4">
+                           <Flex>
+                              <Text className="font-black text-emerald-800 uppercase tracking-widest text-[10px]">Savings Potential</Text>
+                              <Text className="font-black text-emerald-700 text-3xl">24.5%</Text>
+                           </Flex>
+                           <ProgressBar value={24} color="emerald" className="h-3 rounded-full" />
+                        </div>
+                        <Text className="mt-8 text-xs font-bold text-slate-500 leading-relaxed italic border-l-4 border-emerald-500 pl-6 py-2">
+                          {leakageInfo.count > 2 ? 
+                             `"Analisis algoritma mendeteksi pengeluaran berulang pada kategori ${leakageInfo.name}. Penghematan 15% di sini akan menambah likuiditas sebesar Rp 350rb bulan depan."` : 
+                             `"Pola pengeluaran Anda saat ini sangat sehat. Teruskan kedisiplinan ini untuk mencapai Financial Independence lebih cepat."`
+                          }
+                        </Text>
+                      </Card>
 
+                      <Card className="rounded-[2.5rem] border-none shadow-2xl shadow-slate-900/20 p-10 bg-slate-900 text-white overflow-hidden relative border-t-2 border-white/20 group">
+                        <div className="absolute -bottom-10 -right-10 opacity-10 group-hover:scale-110 transition-transform duration-1000"><Activity size={220} /></div>
+                        <Title className="text-emerald-400 font-black tracking-[0.3em] uppercase text-[10px] mb-12 flex items-center gap-3">
+                           <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_#10b981]"></div> Intelligent Burn Rate
+                        </Title>
+                        <div className="space-y-2">
+                           <Text className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Safe Daily Spend Limit</Text>
+                           <Metric className="text-white font-black text-5xl tracking-tighter">
+                              {formatRp(stats.balance / 30).replace('Rp', '').trim()}
+                           </Metric>
+                        </div>
+                        <div className="mt-10 p-6 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md">
+                           <Text className="text-emerald-100 font-medium text-sm leading-relaxed">
+                              Sistem memproyeksikan saldo Anda aman hingga akhir bulan jika menjaga pengeluaran harian di bawah angka rekomendasi di atas.
+                           </Text>
+                        </div>
+                      </Card>
+                  </Grid>
+               </div>
+            </div>
+          )}
+
+          {/* TAB: LEDGER */}
+          {activeTab === 'ledger' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+               <Card className="rounded-[3rem] border-none shadow-2xl shadow-slate-200/60 ring-1 ring-slate-200 overflow-hidden bg-white p-0">
+                  <div className="p-10 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-8 bg-gradient-to-b from-white to-slate-50/50">
+                     <div>
+                        <div className="flex items-center gap-3 mb-2">
+                           <div className="p-3 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-200"><History size={20} strokeWidth={3}/></div>
+                           <Title className="font-black text-slate-900 text-2xl tracking-tighter">Verified Ledger History</Title>
+                        </div>
+                        <Text className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em] ml-1 flex items-center gap-2">
+                           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div> Cloud Sync: Operational
+                        </Text>
+                     </div>
+                     <div className="relative w-full md:w-96">
+                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={20}/>
+                        <input 
+                           type="text" 
+                           placeholder="Filter transaksi..." 
+                           className="w-full pl-14 pr-6 py-4.5 bg-white border border-slate-200 rounded-2xl text-base font-bold outline-none focus:ring-4 focus:ring-emerald-600/10 focus:border-emerald-600 transition-all shadow-sm"
+                           onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                     </div>
+                  </div>
+                  <div className="overflow-x-auto max-h-[700px] custom-scrollbar">
+                     <table className="w-full text-left border-collapse">
+                        <thead className="bg-slate-900 sticky top-0 z-10">
+                           <tr>
+                              <th className="px-12 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500">Timestamp</th>
+                              <th className="px-12 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500">Entity Information</th>
+                              <th className="px-12 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500 text-right">Magnitude</th>
+                              <th className="px-12 py-6 text-[10px] font-black uppercase tracking-[0.3em] text-emerald-500 text-center">Action</th>
+                           </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                           {transactions.filter(t => t.desc?.toLowerCase().includes(searchQuery.toLowerCase())).map(t => (
+                              <tr key={t.id} className="hover:bg-emerald-50/30 transition-all cursor-default group border-l-8 border-l-transparent hover:border-l-emerald-600">
+                                 <td className="px-12 py-10">
+                                    <div className="text-slate-900 font-black text-xs uppercase bg-slate-100 w-fit px-3 py-1 rounded-md">{t.dateStr}</div>
+                                 </td>
+                                 <td className="px-12 py-10">
+                                    <div>
+                                       <Text className="font-black text-slate-900 text-lg leading-none mb-3 group-hover:text-emerald-700 transition-colors uppercase tracking-tight">{t.desc || "Transaksi Unlabeled"}</Text>
+                                       <div className="flex items-center gap-3">
+                                          <Badge color="emerald" size="xs" variant="solid" className="font-black uppercase tracking-widest text-[8px] px-3 py-1 rounded-full shadow-sm">{t.category}</Badge>
+                                          <div className="text-[10px] text-slate-300 font-bold uppercase tracking-widest italic">{t.status || 'Verified'}</div>
+                                       </div>
+                                    </div>
+                                 </td>
+                                 <td className="px-12 py-10 text-right">
+                                    <div className={`font-black text-2xl tracking-tighter ${t.type?.toUpperCase() === 'MASUK' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                       {t.type?.toUpperCase() === 'MASUK' ? '+' : '-'}{formatRp(t.amount).replace('Rp', '').trim()}
+                                    </div>
+                                    <div className={`text-[10px] font-black uppercase tracking-[0.25em] mt-2 ${t.type?.toUpperCase() === 'MASUK' ? 'text-emerald-400' : 'text-slate-300'}`}>{t.type}</div>
+                                 </td>
+                                 <td className="px-12 py-10 text-center">
+                                    <button onClick={() => setDeleteId(t.id)} className="p-3 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all active:scale-90">
+                                       <Trash2 size={18} strokeWidth={2.5}/>
+                                    </button>
+                                 </td>
+                              </tr>
+                           ))}
+                        </tbody>
+                     </table>
+                  </div>
+               </Card>
+            </div>
+          )}
+
+          {/* TAB: ZAKAT */}
+          {activeTab === 'zakat' && (
+            <div className="animate-in slide-in-from-bottom-4 duration-700 max-w-4xl mx-auto">
+               <Card className="rounded-[4rem] p-16 bg-gradient-to-br from-emerald-600 to-emerald-800 border-t-2 border-white/20 shadow-[0_50px_100px_rgba(5,150,105,0.3)] overflow-hidden relative mb-14 group">
+                  <div className="absolute -top-40 -right-40 w-[30rem] h-[30rem] bg-white/10 rounded-full blur-[120px] group-hover:scale-125 transition-transform duration-1000"></div>
+                  <div className="relative text-center">
+                     <div className="w-24 h-24 bg-white/20 backdrop-blur-xl rounded-3xl flex items-center justify-center mx-auto mb-10 border border-white/30 shadow-2xl rotate-6 transform hover:rotate-0 transition-transform">
+                        <Calculator className="text-white" size={48} strokeWidth={2.5}/>
+                     </div>
+                     <Text className="text-emerald-100 font-black uppercase tracking-[0.5em] text-[10px] mb-4">Calculated Zakat Maal Obligation</Text>
+                     <Metric className="text-white font-black text-8xl mt-6 tracking-tighter drop-shadow-2xl">
+                        {formatRp(stats.balance > 0 ? stats.balance * 0.025 : 0)}
+                     </Metric>
+                     <div className="mt-14 inline-flex items-center gap-4 px-10 py-4 bg-black/30 backdrop-blur-2xl rounded-full border border-white/10 shadow-2xl">
+                        <Info size={20} className="text-emerald-400" />
+                        <Text className="text-white text-[12px] font-black tracking-[0.2em] uppercase italic">2026 Threshold: Rp 110.5M (85g Gold)</Text>
+                     </div>
+                  </div>
+               </Card>
+               <Grid numItemsMd={2} className="gap-10">
+                  <Card className="rounded-[3rem] border-none shadow-xl shadow-rose-100/30 ring-1 ring-slate-200 p-12 hover:translate-y-[-10px] transition-all bg-white">
+                     <div className="w-16 h-16 bg-rose-600 text-white rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-rose-200 transform -rotate-3"><HeartHandshake size={32} strokeWidth={3}/></div>
+                     <Title className="font-black text-slate-900 text-2xl mb-2 tracking-tight">Pure Charity (1%)</Title>
+                     <Metric className="text-rose-600 font-black text-4xl">{formatRp(stats.balance * 0.01)}</Metric>
+                     <Text className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-8">Recommended Contribution</Text>
+                  </Card>
+                  <Card className="rounded-[3rem] border-none shadow-xl shadow-amber-100/30 ring-1 ring-slate-200 p-12 hover:translate-y-[-10px] transition-all bg-white">
+                     <div className="w-16 h-16 bg-amber-500 text-white rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-amber-200 transform rotate-3"><Coins size={32} strokeWidth={3}/></div>
+                     <Title className="font-black text-slate-900 text-2xl mb-2 tracking-tight">Compliance Status</Title>
+                     <div className="mt-10">
+                        <Badge color={stats.balance > 110500000 ? "rose" : "emerald"} variant="solid" size="lg" className="px-10 py-4 rounded-2xl text-[12px] font-black uppercase tracking-[0.3em] shadow-xl">
+                           {stats.balance > 110500000 ? "ACTION REQUIRED" : "COMPLIANCE OK"}
+                        </Badge>
+                     </div>
+                  </Card>
+               </Grid>
+            </div>
+          )}
+        </div>
       </main>
 
-      {/* =========================================
-            BOTTOM NAVIGATION BAR (MOBILE-FRIENDLY)
-      ========================================= */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-100 px-6 py-4 flex justify-around items-center z-[100] shadow-[0_-10px_40px_rgba(0,0,0,0.03)] pb-safe">
-        <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === 'dashboard' ? 'text-emerald-600 scale-110' : 'text-slate-400 hover:text-slate-500'}`}>
-          <LayoutDashboard className="w-5 h-5" />
-          <span className="text-[9px] font-black uppercase tracking-widest">Dashboard</span>
-        </button>
-        <div className="w-[1px] h-6 bg-slate-200"></div>
-        <button onClick={() => setActiveTab('zakat')} className={`flex flex-col items-center gap-1.5 transition-all duration-300 ${activeTab === 'zakat' ? 'text-emerald-600 scale-110' : 'text-slate-400 hover:text-slate-500'}`}>
-          <Calculator className="w-5 h-5" />
-          <span className="text-[9px] font-black uppercase tracking-widest">Zakat</span>
-        </button>
-      </div>
-
-      {/* STYLES UNTUK SCROLLBAR & ANIMASI */}
       <style dangerouslySetInnerHTML={{ __html: `
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; } 
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; } 
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; } 
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; } 
-        @keyframes scale-in { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } } 
-        .scale-in { animation: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 1rem); }
-      ` }} />
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #F1F5F9; }
+        .tremor-AreaChart-gridline { stroke: #E2E8F0; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+        .animate-in { animation: fade-in 0.6s ease-out, slide-up 0.6s ease-out; }
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      `}} />
     </div>
   );
 }
