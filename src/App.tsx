@@ -8,7 +8,8 @@ import {
   Filter, Calendar, RefreshCcw, Trash2, AlertTriangle, Target,
   ArrowUpRight, ArrowDownRight, Zap, Info, BarChart3, 
   LineChart as LineChartIcon, ChevronLeft, ChevronRight, 
-  Menu, LogOut, Settings, Sparkles
+  Menu, LogOut, Settings, Sparkles,
+  Calculator, HeartHandshake, Coins // 🔥 FIX: IKON ZAKAT YANG BIKIN WHITE SCREEN SUDAH DIMASUKKAN
 } from 'lucide-react';
 
 // --- IMPORT TREMOR COMPONENTS ---
@@ -18,7 +19,7 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V22.0 - ULTIMATE STABLE)
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V22.1 - 100% STABLE)
  * Fitur: Modular UI, Anti-Crash Imports, Persistent Storage, Desktop Balanced Grid
  * Developed for: Rizki Akbar
  */
@@ -313,12 +314,9 @@ export default function App() {
                 <div className="flex flex-col xl:flex-row gap-6">
                   
                   {/* LEFT COLUMN: VISUAL CHARTS (Order-2 on Mobile, Order-1 on Laptop) */}
-                  <div className="flex-1 min-w-0 order-2 xl:order-1 space-y-6">
+                  <div className="flex-1 min-w-0 order-2 xl:order-1 space-y-6 flex flex-col">
                     
-                    {/* ALOKASI DANA (PIE CHART) */}
-                    <AllocationCard />
-
-                    {/* TREN HARIAN (DI BAWAH PIE CHART) */}
+                    {/* TREN HARIAN */}
                     <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white relative hover:shadow-md transition-all">
                       <Flex className="mb-6 items-start justify-between">
                           <div className="flex items-center gap-2">
@@ -330,22 +328,50 @@ export default function App() {
                               <button onClick={() => setIsBarChart(false)} className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-colors ${!isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Garis</button>
                           </div>
                       </Flex>
-                      <div className="h-64 mt-4">
+                      <div className="h-56 mt-4">
                           {isBarChart ? (
-                            <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} showGridLines={false} />
+                            <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} showGridLines={false} showTooltip={true} />
                           ) : (
-                            <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} curveType="monotone" showGridLines={false} />
+                            <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} curveType="monotone" showGridLines={false} showTooltip={true} />
                           )}
                       </div>
-                      <Text className="text-[10px] text-slate-400 font-medium mt-6 text-center italic tracking-wide">Ketuk grafik untuk melihat detail nominal harian.</Text>
+                      <Text className="text-[10px] text-slate-400 font-medium mt-6 text-center italic tracking-wide">Ketuk atau hover area grafik untuk melihat detail nominal harian.</Text>
                     </Card>
+
+                    {/* AI INSIGHTS AREA */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card className="rounded-3xl border-none shadow-sm p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group hover:shadow-md transition-all">
+                          <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><Zap size={140} /></div>
+                          <Title className="font-bold text-slate-900 uppercase text-[10px] tracking-widest flex items-center gap-2 mb-6">
+                            <TrendingUp size={18} strokeWidth={2.5} className="text-emerald-600"/> Efisiensi
+                          </Title>
+                          <div className="space-y-4">
+                            <Flex><Text className="font-bold text-emerald-800 text-[10px] uppercase">Potensi hemat</Text><Text className="font-black text-emerald-700 text-3xl">24%</Text></Flex>
+                            <ProgressBar value={24} color="emerald" className="h-3 rounded-full shadow-inner" />
+                          </div>
+                          <Text className="mt-8 text-[11px] font-medium text-slate-600 italic border-l-4 border-emerald-500 pl-4 py-1 leading-relaxed">
+                              {leakageInfo.count > 1 ? `"Detektor AI mendeteksi pengeluaran berulang pada kategori ${leakageInfo.name.toLowerCase()}."` : `"Arus kas Anda bulan ini sangat efisien. Pertahankan!"`}
+                          </Text>
+                      </Card>
+
+                      <Card className="rounded-3xl border-none shadow-sm p-7 bg-slate-900 text-white overflow-hidden relative border-t border-white/5 hover:shadow-md transition-all">
+                          <div className="absolute -bottom-10 -right-10 opacity-10"><Activity size={180} /></div>
+                          <Title className="text-emerald-400 font-bold uppercase text-[10px] tracking-[0.3em] mb-8 leading-none">Batas harian aman</Title>
+                          <Metric className="text-white font-black text-4xl tracking-tighter drop-shadow-md">{formatRp(stats.balance > 0 ? stats.balance / 30 : 0).replace('Rp', '').trim()}</Metric>
+                          <Text className="text-emerald-100 font-medium text-[10px] mt-6 opacity-80 leading-relaxed">Estimasi pengeluaran harian agar saldo aman sampai akhir bulan.</Text>
+                      </Card>
+                    </div>
+
                   </div>
 
-                  {/* RIGHT COLUMN: WIDGETS & AI (Order-1 on Mobile, Order-2 on Laptop) */}
+                  {/* KOLOM KANAN (SEMPIT) -> Tampil ke-1 di Mobile, ke-2 di Laptop */}
                   <aside className="w-full xl:w-[380px] shrink-0 order-1 xl:order-2 space-y-6 flex flex-col">
                     
+                    {/* ALOKASI DANA (PIE CHART) */}
+                    {renderAllocationCard()}
+
                     {/* TARGET ANGGARAN */}
-                    <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-8 bg-white hover:shadow-md transition-all">
+                    <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-8 bg-white overflow-hidden relative hover:shadow-md transition-all">
                       <Flex className="mb-8 items-center justify-between">
                           <Title className="text-[10px] font-bold text-slate-800 tracking-[0.3em] leading-none uppercase">Target anggaran</Title>
                           <button onClick={() => setIsSettingBudget(true)} className="p-2 bg-slate-50 rounded-xl text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"><Settings size={16}/></button>
@@ -354,43 +380,28 @@ export default function App() {
                         <div>
                           <Flex className="mb-3">
                               <Text className="font-bold text-[9px] text-slate-400 uppercase tracking-widest">Pemakaian</Text>
-                              <Badge color={totalKeluarBulanTerpilih > monthlyBudget ? "rose" : "emerald"} variant="solid" className="font-bold rounded-lg text-[9px] px-2.5 py-0.5">
+                              <Badge color={totalKeluarBulanTerpilih > monthlyBudget ? "rose" : "emerald"} variant="solid" className="font-bold rounded-lg text-[9px] px-2.5 py-0.5 shadow-sm">
                                 {monthlyBudget > 0 ? Math.round((totalKeluarBulanTerpilih / monthlyBudget) * 100) : 0}%
                               </Badge>
                           </Flex>
                           <ProgressBar value={monthlyBudget > 0 ? (totalKeluarBulanTerpilih / monthlyBudget) * 100 : 0} color={totalKeluarBulanTerpilih > monthlyBudget ? "rose" : "emerald"} className="h-3 rounded-full shadow-inner" />
                         </div>
-                        <div className="p-5 bg-slate-50/70 rounded-2xl border border-slate-100">
-                          <Text className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 leading-none">Limit bulanan (Tap utk ubah)</Text>
+                        <div className="p-5 bg-slate-50/70 rounded-2xl border border-slate-100 shadow-inner">
+                          <Text className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-3 leading-none">Limit bulanan (Ketuk utk ubah)</Text>
                           {isSettingBudget ? (
-                              <input type="number" defaultValue={monthlyBudget} onBlur={(e) => handleSaveBudget(e.target.value)} onKeyDown={(e) => { if(e.key === 'Enter') handleSaveBudget(e.currentTarget.value) }} className="bg-white border-2 border-emerald-500 rounded-xl px-4 py-2 text-lg font-black w-full outline-none text-slate-800 shadow-sm" autoFocus />
+                              <input 
+                                type="number" 
+                                defaultValue={monthlyBudget} 
+                                onBlur={(e) => handleSaveBudget(e.target.value)}
+                                onKeyDown={(e) => { if(e.key === 'Enter') handleSaveBudget(e.currentTarget.value) }}
+                                className="bg-white border-2 border-emerald-500 rounded-xl px-4 py-2 text-lg font-black w-full outline-none text-slate-800 shadow-sm" 
+                                autoFocus 
+                              />
                           ) : (
                               <Metric onClick={() => setIsSettingBudget(true)} className="text-2xl font-black text-slate-800 tracking-tighter drop-shadow-sm cursor-pointer hover:opacity-70 transition-opacity">{formatRp(monthlyBudget)}</Metric>
                           )}
                         </div>
                       </div>
-                    </Card>
-
-                    {/* AI INSIGHTS AREA */}
-                    <Card className="rounded-3xl border-none shadow-sm p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group">
-                        <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><Zap size={140} /></div>
-                        <Title className="font-bold text-slate-900 uppercase text-[10px] tracking-widest flex items-center gap-2 mb-6">
-                          <TrendingUp size={18} strokeWidth={2.5} className="text-emerald-600"/> Efisiensi
-                        </Title>
-                        <div className="space-y-4">
-                          <Flex><Text className="font-bold text-emerald-800 text-[10px] uppercase">Potensi hemat</Text><Text className="font-black text-emerald-700 text-3xl">24%</Text></Flex>
-                          <ProgressBar value={24} color="emerald" className="h-3 rounded-full" />
-                        </div>
-                        <Text className="mt-8 text-[11px] font-medium text-slate-600 italic border-l-4 border-emerald-500 pl-4 py-1 leading-relaxed">
-                            {leakageInfo.count > 1 ? `"Detektor AI mendeteksi pengeluaran berulang pada kategori ${leakageInfo.name.toLowerCase()}."` : `"Arus kas Anda bulan ini sangat efisien. Pertahankan!"`}
-                        </Text>
-                    </Card>
-
-                    <Card className="rounded-3xl border-none shadow-sm p-7 bg-slate-900 text-white overflow-hidden relative border-t border-white/5 hover:shadow-md transition-all">
-                        <div className="absolute -bottom-10 -right-10 opacity-10"><Activity size={180} /></div>
-                        <Title className="text-emerald-400 font-bold uppercase text-[10px] tracking-[0.3em] mb-8 leading-none">Batas harian aman</Title>
-                        <Metric className="text-white font-black text-4xl tracking-tighter drop-shadow-md">{formatRp(stats.balance > 0 ? stats.balance / 30 : 0).replace('Rp', '').trim()}</Metric>
-                        <Text className="text-emerald-100 font-medium text-[10px] mt-6 opacity-80 leading-relaxed">Estimasi pengeluaran harian agar saldo aman sampai akhir bulan.</Text>
                     </Card>
 
                   </aside>
@@ -399,24 +410,26 @@ export default function App() {
               </div>
             )}
 
-            {/* TAB: MUTASI (LEDGER) */}
+            {/* =======================================================
+                MUTASI TAB 
+               ======================================================== */}
             {activeTab === 'ledger' && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto space-y-8">
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto space-y-6">
                   <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-slate-100 overflow-hidden bg-white p-0">
                     <div className="p-6 lg:p-8 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-6 bg-slate-50/50">
-                      <Title className="font-black text-slate-900 text-2xl tracking-tighter">Mutasi Rekening</Title>
+                      <Title className="font-black text-slate-900 text-2xl tracking-tighter">Riwayat Transaksi</Title>
                       <div className="relative w-full md:w-[320px]">
                           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                          <input type="text" placeholder="Cari transaksi..." className="w-full pl-12 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none" onChange={(e) => setSearchQuery(e.target.value)} />
+                          <input type="text" placeholder="Cari keterangan / kategori..." className="w-full pl-12 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none shadow-sm" onChange={(e) => setSearchQuery(e.target.value)} />
                       </div>
                     </div>
                     <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
                       <table className="w-full text-left border-collapse">
                           <thead className="bg-slate-900 sticky top-0 z-10">
                             <tr>
-                                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-400">Waktu</th>
+                                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-400 whitespace-nowrap">Waktu</th>
                                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-400">Keterangan</th>
-                                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-400 text-right">Nominal</th>
+                                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-400 text-right whitespace-nowrap">Nominal</th>
                                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-400 text-center">Aksi</th>
                             </tr>
                           </thead>
@@ -440,20 +453,27 @@ export default function App() {
                       </table>
                     </div>
                   </Card>
-                  <AllocationCard />
+                  
+                  {/* 🔥 PIE CHART DI BAWAH MUTASI (TENGAH & RESPONSIVE) */}
+                  <div className="max-w-md mx-auto xl:max-w-none">
+                    {renderAllocationCard()}
+                  </div>
               </div>
             )}
 
-            {/* TAB: ZAKAT (SHARIA CALCULATOR) */}
+            {/* =======================================================
+                ZAKAT TAB 
+               ======================================================== */}
             {activeTab === 'zakat' && (
-              <div className="animate-in slide-in-from-bottom-6 duration-700 max-w-4xl mx-auto space-y-8">
-                <Card className="rounded-[3rem] p-10 lg:p-16 bg-gradient-to-br from-emerald-600 to-emerald-900 text-white text-center shadow-2xl relative overflow-hidden group border border-emerald-500/30">
+              <div className="animate-in slide-in-from-bottom-6 duration-700 max-w-4xl mx-auto space-y-6">
+                <Card className="rounded-[3rem] p-10 lg:p-16 bg-gradient-to-br from-emerald-600 to-emerald-900 text-white text-center shadow-[0_40px_80px_rgba(5,150,105,0.2)] relative overflow-hidden group border border-emerald-500/30">
                   <div className="absolute -top-40 -right-40 w-[30rem] h-[30rem] bg-white/10 rounded-full blur-[100px] group-hover:scale-110 transition-transform duration-1000"></div>
                   <div className="relative z-10">
                       <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center mx-auto mb-8 border border-white/20 shadow-xl"><Calculator className="text-white" size={36} strokeWidth={2.5}/></div>
                       <Text className="text-emerald-100 font-bold uppercase tracking-[0.4em] text-[10px] mb-4 leading-none">Estimasi kewajiban zakat maal</Text>
                       <Metric className="text-white font-black text-5xl lg:text-7xl mt-6 tracking-tighter drop-shadow-2xl">{formatRp(wajibZakat ? stats.balance * 0.025 : 0)}</Metric>
                       
+                      {/* PROGRESS TO NISHAB */}
                       <div className="mt-12 max-w-md mx-auto text-left bg-black/20 p-6 rounded-3xl border border-white/10">
                         <Flex className="mb-3">
                           <Text className="text-emerald-200 text-[10px] font-bold uppercase tracking-widest">Progress ke Nishab</Text>
@@ -461,7 +481,7 @@ export default function App() {
                         </Flex>
                         <ProgressBar value={Math.min((stats.balance / nishabTahunan) * 100, 100)} color="emerald" className="h-2.5 rounded-full bg-black/40" />
                         <Text className="text-emerald-50 text-[10px] mt-4 text-center leading-relaxed font-medium">
-                          {wajibZakat ? "Alhamdulillah, harta Anda sudah mencapai nishab. Wajib zakat jika sudah haul (1 tahun)." : `Kurang ${formatRp(nishabTahunan - stats.balance)} lagi untuk mencapai batas nishab.`}
+                          {wajibZakat ? "Alhamdulillah, harta Anda sudah mencapai nishab. Wajib dikeluarkan zakatnya jika sudah haul (1 tahun)." : `Kurang ${formatRp(nishabTahunan - stats.balance)} lagi untuk mencapai batas nishab.`}
                         </Text>
                       </div>
 
@@ -476,23 +496,27 @@ export default function App() {
                 </Card>
 
                 <Grid numItemsMd={2} className="gap-6">
-                  <Card className="rounded-[2.5rem] p-8 lg:p-10 bg-white shadow-xl hover:translate-y-[-5px] transition-transform flex flex-col justify-center">
+                  <Card className="rounded-[2.5rem] p-8 lg:p-10 bg-white ring-1 ring-slate-100 shadow-xl hover:translate-y-[-5px] transition-transform">
                       <HeartHandshake className="text-rose-500 mb-6" size={32} strokeWidth={3}/>
                       <Title className="font-black text-slate-800 uppercase text-[11px] tracking-[0.2em] mb-3">Sedekah Ideal (1%)</Title>
                       <Metric className="text-rose-600 font-black text-3xl">{formatRp(stats.balance * 0.01)}</Metric>
-                      <Text className="mt-6 text-[10px] font-medium text-slate-400 leading-relaxed uppercase tracking-[0.1em]">Rekomendasi bulanan untuk berbagi rutin.</Text>
+                      <Text className="mt-6 text-[10px] font-medium text-slate-400 leading-relaxed uppercase tracking-[0.1em]">Rekomendasi bulanan penyisihan aset untuk sedekah rutin.</Text>
                   </Card>
-                  <Card className="rounded-[2.5rem] p-8 lg:p-10 bg-white shadow-xl hover:translate-y-[-5px] transition-transform flex flex-col justify-center">
+                  <Card className="rounded-[2.5rem] p-8 lg:p-10 bg-white ring-1 ring-slate-100 shadow-xl hover:translate-y-[-5px] transition-transform flex flex-col justify-center">
                       <Coins className="text-amber-500 mb-6" size={32} strokeWidth={3}/>
                       <Title className="font-black text-slate-800 uppercase text-[11px] tracking-[0.2em] mb-4">Status Kewajiban</Title>
                       <div>
                           <Badge color={wajibZakat ? "rose" : "emerald"} variant="solid" size="xl" className="px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest shadow-md">
-                              {wajibZakat ? "WAJIB ZAKAT" : "BELUM NISHAB"}
+                              {wajibZakat ? "WAJIB ZAKAT (HAUL)" : "BELUM NISHAB"}
                           </Badge>
                       </div>
                   </Card>
                 </Grid>
-                <AllocationCard />
+
+                {/* 🔥 PIE CHART DI BAWAH ZAKAT */}
+                <div className="pt-4 max-w-md mx-auto xl:max-w-none">
+                  {renderAllocationCard()}
+                </div>
               </div>
             )}
 
