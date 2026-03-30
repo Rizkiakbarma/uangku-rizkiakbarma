@@ -1,6 +1,7 @@
 // @ts-nocheck
 /* eslint-disable */
 import React, { useState, useEffect, useMemo } from 'react';
+import { createClient } from '@supabase/supabase-js'; // 🔥 MESIN SUPABASE
 import { 
   Wallet, TrendingUp, TrendingDown, Activity, 
   Loader2, Lock, CheckCircle2, LayoutDashboard, 
@@ -12,27 +13,28 @@ import {
   Calculator, HeartHandshake, Coins
 } from 'lucide-react';
 
-// --- IMPORT TREMOR COMPONENTS ---
 import { 
   Card, Metric, Text, Flex, ProgressBar, Grid, AreaChart, 
   DonutChart, Title, Badge, BarChart
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V23.1 - TREND CHART OPTIMIZED)
- * Fix: 30 Days Data, Horizontal Scroll Chart, Y-Axis Cutoff Fixed.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V24.0 - SUPABASE REAL-TIME ENGINE)
+ * Fix: Migrasi total dari Google Sheets ke Supabase. 
+ * UI: 30-Day Scrollable Chart, Pie Chart Optimized, Anti-Crash.
  */
 
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyslKsTua7BE8pwmFh1xfRZn7QhfQMSKbGYvY3nAxx6qu41iRXJLBK-z8AsKVSd2_g1ng/exec"; 
+// 🔥 KONEKSI SUPABASE KAMU
+const SUPABASE_URL = "https://tdjzksdxnvxoaethaxeo.supabase.co";
+const SUPABASE_KEY = "sb_publishable_CIPEHIf12ctSTq_liVgWiA_E3n734fh";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const DUMMY_DATA = [
   { id: 991, date: new Date(), amount: 15500000, type: 'MASUK', category: 'MASUK', desc: 'Gaji (Contoh)' },
   { id: 992, date: new Date(), amount: 250000, type: 'KELUAR', category: 'Food and Beverages', desc: 'Makan Siang' },
-  { id: 994, date: new Date(), amount: 500000, type: 'KELUAR', category: 'SEDEKAH/ZAKAT', desc: 'Infaq' },
 ];
 
 export default function App() {
-  // --- 1. CORE STATES & PERSISTENCE ---
   const getInitialTab = () => {
     try { return localStorage.getItem('budgetin_last_tab') || 'overview'; } 
     catch (e) { return 'overview'; }
@@ -53,13 +55,14 @@ export default function App() {
   const [monthlyBudget, setMonthlyBudget] = useState(5000000); 
   const [isSettingBudget, setIsSettingBudget] = useState(false);
 
-  // --- 2. ENGINE PENGOLAH DATA ---
+  // --- 1. SUPABASE ENGINE (PENGGANTI GOOGLE SHEETS) ---
   const processIncomingData = (rawList: any[]) => {
     if (!Array.isArray(rawList)) return [];
     return rawList.map((item: any) => {
       const d = new Date(item.date);
       return {
         ...item,
+        desc: item.description || "Transaksi", // Nama kolom di Supabase
         dateObj: d,
         dateKey: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
         dateStr: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
@@ -69,22 +72,30 @@ export default function App() {
     }).sort((a: any, b: any) => b.dateObj - a.dateObj);
   };
 
-  const fetchData = (idFromUrl: string) => {
+  // FUNGSI TARIK DATA SUPER CEPAT
+  const fetchData = async (idFromUrl: string) => {
     setLoading(true);
-    fetch(`${GAS_API_URL}?userid=${idFromUrl}`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === 'success') {
-          setTransactions(processIncomingData(data.data));
-          setError(null);
-        } else {
-          setError(data.message || "Gagal sinkronisasi data.");
-        }
-        setLoading(false);
-      })
-      .catch(() => { setError("Koneksi gagal."); setLoading(false); });
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', String(idFromUrl))
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+      if (data) {
+        setTransactions(processIncomingData(data));
+        setError(null);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError("Gagal menyinkronkan data dari Supabase Server.");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // FUNGSI HAPUS DATA LANGSUNG KE SUPABASE
   const handleDelete = async () => {
     if (isDemo) {
       setTransactions(prev => prev.filter(t => t.id !== deleteId));
@@ -93,29 +104,58 @@ export default function App() {
     if (!deleteId || !userId) return;
     setIsDeleting(true);
     try {
-      const response = await fetch(`${GAS_API_URL}?userid=${userId}&action=delete&row=${deleteId}`);
-      const result = await response.json();
-      if (result.status === 'success') { setDeleteId(null); fetchData(userId); }
+      const { error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', deleteId)
+        .eq('user_id', String(userId));
+        
+      if (!error) {
+        setDeleteId(null); 
+        // Data akan refresh otomatis berkat Realtime Listener di bawah
+      } else {
+        alert("Gagal menghapus data.");
+      }
     } catch (err) { console.error(err); } finally { setIsDeleting(false); }
   };
 
+  // 🔥 INISIALISASI & SENSOR REAL-TIME
   useEffect(() => {
     const idFromUrl = new URLSearchParams(window.location.search).get('userid');
     if (!idFromUrl) {
       setIsDemo(true); setTransactions(processIncomingData(DUMMY_DATA)); setLoading(false); return;
     }
-    setUserId(idFromUrl); fetchData(idFromUrl);
+    
+    setUserId(idFromUrl); 
+    fetchData(idFromUrl);
+    
     try {
       const savedBudget = localStorage.getItem(`budgetin_budget_${idFromUrl}`);
       if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
     } catch (e) {}
+
+    // SENSOR OTOMATIS: Jika ada chat masuk di Telegram, web otomatis terupdate!
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${idFromUrl}` },
+        (payload) => {
+          fetchData(idFromUrl); // Panggil data baru tanpa harus direfresh user
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
     try { localStorage.setItem('budgetin_last_tab', activeTab); } catch (e) {}
   }, [activeTab]);
 
-  // --- 3. LOGIKA ANALITIK ---
+  // --- 2. LOGIKA ANALITIK & VISUAL ---
   const formatRp = (num: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
   const axisFormatter = (num: number) => new Intl.NumberFormat('id-ID', { notation: 'compact', compactDisplay: 'short' }).format(num);
 
@@ -139,10 +179,9 @@ export default function App() {
     filteredByMonth.filter(t => t.type?.toUpperCase() === 'KELUAR').reduce((a, b) => a + Number(b.amount), 0)
   , [filteredByMonth]);
 
-  // 🔥 REVISI: TREN HARIAN 30 HARI KE BELAKANG
   const chartData = useMemo(() => {
     const data = [];
-    for (let i = 29; i >= 0; i--) { // Mengubah 6 hari menjadi 29 hari (30 hari total)
+    for (let i = 29; i >= 0; i--) { 
       const d = new Date(); d.setDate(d.getDate() - i);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const amt = transactions.filter(t => t.type?.toUpperCase() === 'KELUAR' && t.dateKey === key).reduce((s, t) => s + Number(t.amount), 0);
@@ -183,11 +222,40 @@ export default function App() {
   const tremorColors = ["emerald-800", "emerald-600", "rose-500", "amber-500", "slate-800", "indigo-500", "cyan-600", "purple-500"];
   const hexColors = ["#064E3B", "#10B981", "#F43F5E", "#F59E0B", "#1E293B", "#6366F1", "#0891B2", "#A855F7"];
 
-  // --- 4. RENDERER ---
+  // --- REUSABLE PIE CHART ---
+  const AllocationCard = () => (
+    <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white flex flex-col hover:shadow-md transition-all w-full">
+      <Flex className="items-center mb-8">
+        <Title className="font-bold text-[10px] text-slate-400 uppercase tracking-[0.3em] border-l-4 border-emerald-600 pl-3 leading-none">Alokasi dana</Title>
+      </Flex>
+      {categoryData.length > 0 ? (
+        <div className="flex flex-col md:flex-row items-center gap-8 w-full">
+          <div className="w-full md:w-1/2 flex justify-center">
+            <DonutChart className="h-48 lg:h-56 w-full" data={categoryData} category="amount" index="name" valueFormatter={axisFormatter} colors={tremorColors} showAnimation={true} />
+          </div>
+          <div className="w-full md:w-1/2 space-y-4 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+            {categoryData.map((c, i) => (
+              <Flex key={c.name} className="border-b border-slate-50 pb-3 last:border-0 last:pb-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: hexColors[i % hexColors.length] }}></div>
+                  <Text className="text-xs font-bold text-slate-600 uppercase tracking-widest truncate max-w-[120px] lg:max-w-[180px]">{c.name}</Text>
+                </div>
+                <Text className="font-black text-slate-900 text-sm tracking-tighter">{formatRp(c.amount)}</Text>
+              </Flex>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="h-52 flex items-center justify-center italic text-slate-300 text-xs">Belum ada pengeluaran bulan ini.</div>
+      )}
+    </Card>
+  );
+
+  // --- 3. RENDERER ---
   if (loading) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center p-10">
       <Loader2 className="animate-spin text-emerald-500 w-12 h-12 mb-6" />
-      <Text className="font-bold tracking-widest text-slate-300 uppercase text-[10px]">Menghubungkan sistem...</Text>
+      <Text className="font-bold tracking-widest text-emerald-600 uppercase text-[10px] animate-pulse">Menghubungkan ke Supabase...</Text>
     </div>
   );
 
@@ -216,7 +284,7 @@ export default function App() {
             <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-md shrink-0"><Activity className="text-white" size={20} strokeWidth={3} /></div>
             <div>
                <h1 className="text-lg font-black tracking-tighter text-slate-900 leading-none uppercase">BudgetIN</h1>
-               <Badge color="emerald" variant="soft" className="mt-1 text-[8px] font-black uppercase px-2 py-0">Versi Pro</Badge>
+               <Badge color="emerald" variant="soft" className="mt-1 text-[8px] font-black uppercase px-2 py-0">SaaS Realtime</Badge>
             </div>
           </div>
           <nav className="flex-1 space-y-2">
@@ -254,7 +322,7 @@ export default function App() {
         <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl px-5 lg:px-8 py-3 flex justify-between items-center border-b border-slate-100/60 shrink-0">
           <div className="flex items-center gap-4">
              <button onClick={() => setIsMobileSidebarOpen(true)} className="lg:hidden p-2 bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-emerald-600"><Menu size={20}/></button>
-             <Badge color="rose" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-rose-50">Sistem v23.1 Aktif</Badge>
+             <Badge color="emerald" variant="solid" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full animate-pulse shadow-md shadow-emerald-200">Live Sync: Supabase</Badge>
           </div>
           <div className="flex items-center gap-3">
             {isDemo && <Badge color="amber" icon={Sparkles} className="font-bold px-2.5 py-0.5 rounded-full text-[8px]">Mode Demo</Badge>}
@@ -269,10 +337,9 @@ export default function App() {
             {activeTab === 'overview' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                 
-                {/* HERO SALDO */}
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 lg:p-8 rounded-[2.5rem] shadow-lg border-t border-white ring-1 ring-slate-100/40">
                   <div>
-                    <Text className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[9px] mb-2 flex items-center gap-2"><div className="w-2 h-2 bg-emerald-500 rounded-full"></div> Total saldo aktif</Text>
+                    <Text className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[9px] mb-2 flex items-center gap-2"><div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div> Total saldo aktif</Text>
                     <h2 className="text-4xl lg:text-5xl font-black tracking-tighter text-slate-900 drop-shadow-md">{formatRp(stats.balance)}</h2>
                   </div>
                   <div className="flex items-center bg-slate-50/80 p-1.5 rounded-2xl border border-slate-100">
@@ -284,7 +351,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* KPI CARDS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <Card className="rounded-[2rem] border-none shadow-sm p-6 lg:p-8 bg-white ring-1 ring-slate-100">
                     <Flex alignItems="center">
@@ -302,37 +368,13 @@ export default function App() {
 
                 <div className="flex flex-col xl:flex-row gap-6">
                   
-                  {/* LEFT COLUMN: VISUAL CHARTS */}
+                  {/* LEFT COLUMN */}
                   <div className="flex-1 min-w-0 order-1 space-y-6 flex flex-col">
                     
-                    {/* ALOKASI DANA */}
-                    <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white flex flex-col hover:shadow-md transition-all w-full">
-                      <Flex className="items-center mb-8">
-                        <Title className="font-bold text-[10px] text-slate-400 uppercase tracking-[0.3em] border-l-4 border-emerald-600 pl-3 leading-none">Alokasi dana</Title>
-                      </Flex>
-                      {categoryData.length > 0 ? (
-                        <div className="flex flex-col md:flex-row items-center gap-8 w-full">
-                          <div className="w-full md:w-1/2 flex justify-center">
-                            <DonutChart className="h-48 lg:h-56 w-full" data={categoryData} category="amount" index="name" valueFormatter={axisFormatter} colors={tremorColors} showAnimation={true} />
-                          </div>
-                          <div className="w-full md:w-1/2 space-y-4 max-h-60 overflow-y-auto custom-scrollbar pr-2">
-                            {categoryData.map((c, i) => (
-                              <Flex key={c.name} className="border-b border-slate-50 pb-3 last:border-0 last:pb-0">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: hexColors[i % hexColors.length] }}></div>
-                                  <Text className="text-xs font-bold text-slate-600 uppercase tracking-widest truncate max-w-[120px] lg:max-w-[180px]">{c.name}</Text>
-                                </div>
-                                <Text className="font-black text-slate-900 text-sm tracking-tighter">{formatRp(c.amount)}</Text>
-                              </Flex>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="h-52 flex items-center justify-center italic text-slate-300 text-xs">Belum ada pengeluaran bulan ini.</div>
-                      )}
-                    </Card>
+                    {/* ALOKASI DANA PIE CHART */}
+                    <AllocationCard />
 
-                    {/* 🔥 REVISI: TREN HARIAN (SCROLLABLE & FIXED Y-AXIS) */}
+                    {/* TREN HARIAN 30 HARI SCROLLABLE */}
                     <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white relative hover:shadow-md transition-all overflow-hidden">
                       <Flex className="mb-6 items-start justify-between">
                           <div className="flex items-center gap-2">
@@ -345,7 +387,6 @@ export default function App() {
                           </div>
                       </Flex>
                       
-                      {/* Kontainer Scroll Horizontal */}
                       <div className="w-full overflow-x-auto custom-scrollbar pb-4 mt-4">
                         <div className="h-64 min-w-[900px] pr-4">
                             {isBarChart ? (
@@ -367,7 +408,7 @@ export default function App() {
 
                   </div>
 
-                  {/* RIGHT COLUMN: WIDGETS & AI */}
+                  {/* RIGHT COLUMN */}
                   <aside className="w-full xl:w-[380px] shrink-0 order-2 space-y-6 flex flex-col">
                     
                     {/* TARGET ANGGARAN */}
@@ -404,7 +445,7 @@ export default function App() {
                       </div>
                     </Card>
 
-                    {/* AI INSIGHTS AREA */}
+                    {/* AI INSIGHTS */}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-6">
                       <Card className="rounded-3xl border-none shadow-sm p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group hover:shadow-md transition-all">
                           <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><Zap size={140} /></div>
@@ -434,7 +475,7 @@ export default function App() {
               </div>
             )}
 
-            {/* TAB: MUTASI */}
+            {/* TAB: MUTASI (TANPA PIE CHART) */}
             {activeTab === 'ledger' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto space-y-6">
                   <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-slate-100 overflow-hidden bg-white p-0">
@@ -445,7 +486,7 @@ export default function App() {
                           <input type="text" placeholder="Cari keterangan / kategori..." className="w-full pl-12 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none shadow-sm" onChange={(e) => setSearchQuery(e.target.value)} />
                       </div>
                     </div>
-                    <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
+                    <div className="overflow-x-auto max-h-[600px] custom-scrollbar">
                       <table className="w-full text-left border-collapse">
                           <thead className="bg-slate-900 sticky top-0 z-10">
                             <tr>
@@ -478,7 +519,7 @@ export default function App() {
               </div>
             )}
 
-            {/* TAB: ZAKAT */}
+            {/* TAB: ZAKAT (TANPA PIE CHART) */}
             {activeTab === 'zakat' && (
               <div className="animate-in slide-in-from-bottom-6 duration-700 max-w-4xl mx-auto space-y-6">
                 <Card className="rounded-[3rem] p-10 lg:p-16 bg-gradient-to-br from-emerald-600 to-emerald-900 text-white text-center shadow-[0_40px_80px_rgba(5,150,105,0.2)] relative overflow-hidden group border border-emerald-500/30">
