@@ -9,7 +9,7 @@ import {
   ArrowUpRight, ArrowDownRight, Zap, Info, BarChart3, 
   LineChart as LineChartIcon, ChevronLeft, ChevronRight, 
   Menu, LogOut, Settings, Sparkles,
-  Calculator, HeartHandshake, Coins // 🔥 IKON ZAKAT PASTIKAN ADA DI SINI
+  Calculator, HeartHandshake, Coins
 } from 'lucide-react';
 
 // --- IMPORT TREMOR COMPONENTS ---
@@ -19,9 +19,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V22.2 - CACHE BUSTER)
- * Fitur: Mengakali Cache Browser & Memastikan Vercel Deploy Kodingan Baru
- * Developed for: Rizki Akbar
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V23.0 - CRASH FIXED)
+ * Fix: Menghapus Pie Chart dari Mutasi & Zakat untuk mencegah Infinite Render Loop Tremor.
  */
 
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyslKsTua7BE8pwmFh1xfRZn7QhfQMSKbGYvY3nAxx6qu41iRXJLBK-z8AsKVSd2_g1ng/exec"; 
@@ -34,7 +33,12 @@ const DUMMY_DATA = [
 
 export default function App() {
   // --- 1. CORE STATES & PERSISTENCE ---
-  const [activeTab, setActiveTab] = useState(localStorage.getItem('budgetin_last_tab') || 'overview');
+  const getInitialTab = () => {
+    try { return localStorage.getItem('budgetin_last_tab') || 'overview'; } 
+    catch (e) { return 'overview'; }
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab());
   const [transactions, setTransactions] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -101,15 +105,25 @@ export default function App() {
       setIsDemo(true); setTransactions(processIncomingData(DUMMY_DATA)); setLoading(false); return;
     }
     setUserId(idFromUrl); fetchData(idFromUrl);
-    const savedBudget = localStorage.getItem(`budgetin_budget_${idFromUrl}`);
-    if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
+    try {
+      const savedBudget = localStorage.getItem(`budgetin_budget_${idFromUrl}`);
+      if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
+    } catch (e) {}
   }, []);
 
-  useEffect(() => { localStorage.setItem('budgetin_last_tab', activeTab); }, [activeTab]);
+  useEffect(() => {
+    try { localStorage.setItem('budgetin_last_tab', activeTab); } catch (e) {}
+  }, [activeTab]);
 
   // --- 3. LOGIKA ANALITIK ---
   const formatRp = (num: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
   const axisFormatter = (num: number) => new Intl.NumberFormat('id-ID', { notation: 'compact', compactDisplay: 'short' }).format(num);
+
+  const changeMonth = (offset: number) => {
+    const newDate = new Date(viewDate);
+    newDate.setMonth(newDate.getMonth() + offset);
+    setViewDate(newDate);
+  };
 
   const stats = useMemo(() => {
     const income = transactions.filter(t => t.type?.toUpperCase() === 'MASUK').reduce((a, b) => a + Number(b.amount), 0);
@@ -159,41 +173,16 @@ export default function App() {
   const handleSaveBudget = (val: string) => {
     let newVal = parseInt(val); if (isNaN(newVal) || newVal < 0) newVal = 0;
     setMonthlyBudget(newVal);
-    if (userId) localStorage.setItem(`budgetin_budget_${userId}`, String(newVal));
+    if (userId) {
+      try { localStorage.setItem(`budgetin_budget_${userId}`, String(newVal)); } catch (e) {}
+    }
     setIsSettingBudget(false);
   };
 
   const tremorColors = ["emerald-800", "emerald-600", "rose-500", "amber-500", "slate-800", "indigo-500", "cyan-600", "purple-500"];
   const hexColors = ["#064E3B", "#10B981", "#F43F5E", "#F59E0B", "#1E293B", "#6366F1", "#0891B2", "#A855F7"];
 
-  // --- 4. KOMPONEN UI REUSABLE (PIE CHART) ---
-  const AllocationCard = () => (
-    <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white flex flex-col hover:shadow-md transition-all w-full">
-      <Flex className="items-center mb-8">
-        <Title className="font-bold text-[10px] text-slate-400 uppercase tracking-[0.3em] border-l-4 border-emerald-600 pl-3 leading-none">Alokasi dana</Title>
-      </Flex>
-      {categoryData.length > 0 ? (
-        <>
-          <DonutChart className="h-48 lg:h-52" data={categoryData} category="amount" index="name" valueFormatter={axisFormatter} colors={tremorColors} showAnimation={true} />
-          <div className="mt-8 space-y-3 max-h-56 overflow-y-auto custom-scrollbar pr-2">
-            {categoryData.map((c, i) => (
-              <Flex key={c.name} className="border-b border-slate-50 pb-3 last:border-0 last:pb-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: hexColors[i % hexColors.length] }}></div>
-                  <Text className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate max-w-[120px] lg:max-w-[150px]">{c.name}</Text>
-                </div>
-                <Text className="font-black text-slate-900 text-[11px] tracking-tighter">{formatRp(c.amount)}</Text>
-              </Flex>
-            ))}
-          </div>
-        </>
-      ) : (
-        <div className="h-52 flex items-center justify-center italic text-slate-300 text-xs">Belum ada pengeluaran bulan ini.</div>
-      )}
-    </Card>
-  );
-
-  // --- 5. RENDERER ---
+  // --- 4. RENDERER ---
   if (loading) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center p-10">
       <Loader2 className="animate-spin text-emerald-500 w-12 h-12 mb-6" />
@@ -264,7 +253,7 @@ export default function App() {
         <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl px-5 lg:px-8 py-3 flex justify-between items-center border-b border-slate-100/60 shrink-0">
           <div className="flex items-center gap-4">
              <button onClick={() => setIsMobileSidebarOpen(true)} className="lg:hidden p-2 bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-emerald-600"><Menu size={20}/></button>
-             <Badge color="rose" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-rose-50">Sistem v22.2 Aktif</Badge>
+             <Badge color="rose" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-rose-50">Sistem v23.0 Aktif</Badge>
           </div>
           <div className="flex items-center gap-3">
             {isDemo && <Badge color="amber" icon={Sparkles} className="font-bold px-2.5 py-0.5 rounded-full text-[8px]">Mode Demo</Badge>}
@@ -350,7 +339,7 @@ export default function App() {
                             <ProgressBar value={24} color="emerald" className="h-3 rounded-full shadow-inner" />
                           </div>
                           <Text className="mt-8 text-[11px] font-medium text-slate-600 italic border-l-4 border-emerald-500 pl-4 py-1 leading-relaxed">
-                              {leakageInfo.count > 1 ? `"Detektor AI mendeteksi pengeluaran berulang pada kategori ${leakageInfo.name.toLowerCase()}."` : `"Arus kas Anda bulan ini sangat efisien. Pertahankan!"`}
+                              {leakageInfo.count > 1 ? `"Detektor AI mendeteksi pengeluaran berulang pada kategori ${leakageInfo?.name?.toLowerCase() || ''}."` : `"Arus kas Anda bulan ini sangat efisien. Pertahankan!"`}
                           </Text>
                       </Card>
 
@@ -367,8 +356,30 @@ export default function App() {
                   {/* KOLOM KANAN (SEMPIT) -> Tampil ke-1 di Mobile, ke-2 di Laptop */}
                   <aside className="w-full xl:w-[380px] shrink-0 order-1 xl:order-2 space-y-6 flex flex-col">
                     
-                    {/* ALOKASI DANA (PIE CHART) */}
-                    {renderAllocationCard()}
+                    {/* ALOKASI DANA (PIE CHART - INLINED NATIVE) */}
+                    <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white flex flex-col hover:shadow-md transition-all w-full">
+                      <Flex className="items-center mb-8">
+                        <Title className="font-bold text-[10px] text-slate-400 uppercase tracking-[0.3em] border-l-4 border-emerald-600 pl-3 leading-none">Alokasi dana</Title>
+                      </Flex>
+                      {categoryData.length > 0 ? (
+                        <>
+                          <DonutChart className="h-48 lg:h-52" data={categoryData} category="amount" index="name" valueFormatter={axisFormatter} colors={tremorColors} showAnimation={true} />
+                          <div className="mt-8 space-y-3 max-h-56 overflow-y-auto custom-scrollbar pr-2">
+                            {categoryData.map((c, i) => (
+                              <Flex key={c.name} className="border-b border-slate-50 pb-3 last:border-0 last:pb-0">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: hexColors[i % hexColors.length] }}></div>
+                                  <Text className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate max-w-[120px] lg:max-w-[150px]">{c.name}</Text>
+                                </div>
+                                <Text className="font-black text-slate-900 text-[11px] tracking-tighter">{formatRp(c.amount)}</Text>
+                              </Flex>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="h-52 flex items-center justify-center italic text-slate-300 text-xs">Belum ada pengeluaran bulan ini.</div>
+                      )}
+                    </Card>
 
                     {/* TARGET ANGGARAN */}
                     <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-8 bg-white overflow-hidden relative hover:shadow-md transition-all">
@@ -411,7 +422,7 @@ export default function App() {
             )}
 
             {/* =======================================================
-                MUTASI TAB 
+                MUTASI TAB (TANPA PIE CHART SESUAI REQUEST)
                ======================================================== */}
             {activeTab === 'ledger' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto space-y-6">
@@ -445,7 +456,7 @@ export default function App() {
                                       {t.type === 'MASUK' ? '+' : '-'}{formatRp(t.amount).replace('Rp', '').trim()}
                                   </td>
                                   <td className="px-6 py-4 text-center">
-                                      <button onClick={() => setDeleteId(t.id)} className="p-2.5 text-slate-300 hover:text-rose-600 transition-all active:scale-90"><Trash2 size={18} strokeWidth={2.5}/></button>
+                                      <button onClick={() => setDeleteId(t.id)} className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all active:scale-90"><Trash2 size={18} strokeWidth={2.5}/></button>
                                   </td>
                                 </tr>
                             ))}
@@ -453,16 +464,11 @@ export default function App() {
                       </table>
                     </div>
                   </Card>
-                  
-                  {/* 🔥 PIE CHART DI BAWAH MUTASI (TENGAH & RESPONSIVE) */}
-                  <div className="max-w-md mx-auto xl:max-w-none">
-                    {renderAllocationCard()}
-                  </div>
               </div>
             )}
 
             {/* =======================================================
-                ZAKAT TAB 
+                ZAKAT TAB (TANPA PIE CHART SESUAI REQUEST)
                ======================================================== */}
             {activeTab === 'zakat' && (
               <div className="animate-in slide-in-from-bottom-6 duration-700 max-w-4xl mx-auto space-y-6">
@@ -473,7 +479,6 @@ export default function App() {
                       <Text className="text-emerald-100 font-bold uppercase tracking-[0.4em] text-[10px] mb-4 leading-none">Estimasi kewajiban zakat maal</Text>
                       <Metric className="text-white font-black text-5xl lg:text-7xl mt-6 tracking-tighter drop-shadow-2xl">{formatRp(wajibZakat ? stats.balance * 0.025 : 0)}</Metric>
                       
-                      {/* PROGRESS TO NISHAB */}
                       <div className="mt-12 max-w-md mx-auto text-left bg-black/20 p-6 rounded-3xl border border-white/10">
                         <Flex className="mb-3">
                           <Text className="text-emerald-200 text-[10px] font-bold uppercase tracking-widest">Progress ke Nishab</Text>
@@ -496,11 +501,11 @@ export default function App() {
                 </Card>
 
                 <Grid numItemsMd={2} className="gap-6">
-                  <Card className="rounded-[2.5rem] p-8 lg:p-10 bg-white ring-1 ring-slate-100 shadow-xl hover:translate-y-[-5px] transition-transform">
+                  <Card className="rounded-[2.5rem] p-8 lg:p-10 bg-white ring-1 ring-slate-100 shadow-xl hover:translate-y-[-5px] transition-transform flex flex-col justify-center">
                       <HeartHandshake className="text-rose-500 mb-6" size={32} strokeWidth={3}/>
                       <Title className="font-black text-slate-800 uppercase text-[11px] tracking-[0.2em] mb-3">Sedekah Ideal (1%)</Title>
                       <Metric className="text-rose-600 font-black text-3xl">{formatRp(stats.balance * 0.01)}</Metric>
-                      <Text className="mt-6 text-[10px] font-medium text-slate-400 leading-relaxed uppercase tracking-[0.1em]">Rekomendasi bulanan penyisihan aset untuk sedekah rutin.</Text>
+                      <Text className="mt-6 text-[10px] font-medium text-slate-400 leading-relaxed uppercase tracking-[0.1em]">Rekomendasi bulanan untuk berbagi rutin.</Text>
                   </Card>
                   <Card className="rounded-[2.5rem] p-8 lg:p-10 bg-white ring-1 ring-slate-100 shadow-xl hover:translate-y-[-5px] transition-transform flex flex-col justify-center">
                       <Coins className="text-amber-500 mb-6" size={32} strokeWidth={3}/>
@@ -512,11 +517,6 @@ export default function App() {
                       </div>
                   </Card>
                 </Grid>
-
-                {/* 🔥 PIE CHART DI BAWAH ZAKAT */}
-                <div className="pt-4 max-w-md mx-auto xl:max-w-none">
-                  {renderAllocationCard()}
-                </div>
               </div>
             )}
 
