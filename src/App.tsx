@@ -9,7 +9,7 @@ import {
   ArrowUpRight, ArrowDownRight, Zap, Info, BarChart3, 
   LineChart as LineChartIcon, ChevronLeft, ChevronRight, 
   Menu, LogOut, Settings, Sparkles,
-  Calculator, HeartHandshake, Coins // 🔥 FIX: IKON ZAKAT YANG BIKIN WHITE SCREEN SUDAH DIMASUKKAN
+  Calculator, HeartHandshake, Coins // 🔥 IKON ZAKAT PASTIKAN ADA DI SINI
 } from 'lucide-react';
 
 // --- IMPORT TREMOR COMPONENTS ---
@@ -19,8 +19,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V22.1 - 100% STABLE)
- * Fitur: Modular UI, Anti-Crash Imports, Persistent Storage, Desktop Balanced Grid
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V22.2 - CACHE BUSTER)
+ * Fitur: Mengakali Cache Browser & Memastikan Vercel Deploy Kodingan Baru
  * Developed for: Rizki Akbar
  */
 
@@ -260,11 +260,11 @@ export default function App() {
             </div>
         )}
 
-        {/* HEADER */}
+        {/* HEADER DENGAN CACHE BUSTER BADGE */}
         <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl px-5 lg:px-8 py-3 flex justify-between items-center border-b border-slate-100/60 shrink-0">
           <div className="flex items-center gap-4">
              <button onClick={() => setIsMobileSidebarOpen(true)} className="lg:hidden p-2 bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-emerald-600"><Menu size={20}/></button>
-             <Badge color="rose" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-rose-50">Sistem Tersinkronisasi</Badge>
+             <Badge color="rose" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-rose-50">Sistem v22.2 Aktif</Badge>
           </div>
           <div className="flex items-center gap-3">
             {isDemo && <Badge color="amber" icon={Sparkles} className="font-bold px-2.5 py-0.5 rounded-full text-[8px]">Mode Demo</Badge>}
