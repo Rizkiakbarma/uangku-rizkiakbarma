@@ -19,8 +19,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V23.0 - CRASH FIXED)
- * Fix: Menghapus Pie Chart dari Mutasi & Zakat untuk mencegah Infinite Render Loop Tremor.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V23.1 - TREND CHART OPTIMIZED)
+ * Fix: 30 Days Data, Horizontal Scroll Chart, Y-Axis Cutoff Fixed.
  */
 
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyslKsTua7BE8pwmFh1xfRZn7QhfQMSKbGYvY3nAxx6qu41iRXJLBK-z8AsKVSd2_g1ng/exec"; 
@@ -139,9 +139,10 @@ export default function App() {
     filteredByMonth.filter(t => t.type?.toUpperCase() === 'KELUAR').reduce((a, b) => a + Number(b.amount), 0)
   , [filteredByMonth]);
 
+  // 🔥 REVISI: TREN HARIAN 30 HARI KE BELAKANG
   const chartData = useMemo(() => {
     const data = [];
-    for (let i = 6; i >= 0; i--) {
+    for (let i = 29; i >= 0; i--) { // Mengubah 6 hari menjadi 29 hari (30 hari total)
       const d = new Date(); d.setDate(d.getDate() - i);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const amt = transactions.filter(t => t.type?.toUpperCase() === 'KELUAR' && t.dateKey === key).reduce((s, t) => s + Number(t.amount), 0);
@@ -249,11 +250,11 @@ export default function App() {
             </div>
         )}
 
-        {/* HEADER DENGAN CACHE BUSTER BADGE */}
+        {/* HEADER */}
         <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl px-5 lg:px-8 py-3 flex justify-between items-center border-b border-slate-100/60 shrink-0">
           <div className="flex items-center gap-4">
              <button onClick={() => setIsMobileSidebarOpen(true)} className="lg:hidden p-2 bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-emerald-600"><Menu size={20}/></button>
-             <Badge color="rose" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-rose-50">Sistem v23.0 Aktif</Badge>
+             <Badge color="rose" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-rose-50">Sistem v23.1 Aktif</Badge>
           </div>
           <div className="flex items-center gap-3">
             {isDemo && <Badge color="amber" icon={Sparkles} className="font-bold px-2.5 py-0.5 rounded-full text-[8px]">Mode Demo</Badge>}
@@ -299,13 +300,12 @@ export default function App() {
                   </Card>
                 </div>
 
-                {/* 🔥 GRID OPTIMIZED: DESKTOP & MOBILE BALANCED */}
                 <div className="flex flex-col xl:flex-row gap-6">
                   
-                  {/* LEFT COLUMN: VISUAL CHARTS (Order-1 on Mobile & Laptop) */}
+                  {/* LEFT COLUMN: VISUAL CHARTS */}
                   <div className="flex-1 min-w-0 order-1 space-y-6 flex flex-col">
                     
-                    {/* ALOKASI DANA (PIE CHART - DIPINDAH KE KIRI ATAS) */}
+                    {/* ALOKASI DANA */}
                     <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white flex flex-col hover:shadow-md transition-all w-full">
                       <Flex className="items-center mb-8">
                         <Title className="font-bold text-[10px] text-slate-400 uppercase tracking-[0.3em] border-l-4 border-emerald-600 pl-3 leading-none">Alokasi dana</Title>
@@ -332,31 +332,42 @@ export default function App() {
                       )}
                     </Card>
 
-                    {/* TREN HARIAN (DI BAWAH PIE CHART) */}
-                    <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white relative hover:shadow-md transition-all">
+                    {/* 🔥 REVISI: TREN HARIAN (SCROLLABLE & FIXED Y-AXIS) */}
+                    <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white relative hover:shadow-md transition-all overflow-hidden">
                       <Flex className="mb-6 items-start justify-between">
                           <div className="flex items-center gap-2">
                             {isBarChart ? <BarChart3 className="w-5 h-5 text-emerald-600" /> : <LineChartIcon className="w-5 h-5 text-emerald-600" />}
-                            <Title className="font-black text-slate-900 text-xl tracking-tight uppercase">Tren Harian</Title>
+                            <Title className="font-black text-slate-900 text-xl tracking-tight uppercase">Tren Harian (30 Hari)</Title>
                           </div>
-                          <div className="flex bg-slate-50 p-1 rounded-xl ring-1 ring-slate-100 shrink-0">
+                          <div className="flex bg-slate-50 p-1 rounded-xl ring-1 ring-slate-100 shrink-0 hidden sm:flex">
                               <button onClick={() => setIsBarChart(true)} className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-colors ${isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Batang</button>
                               <button onClick={() => setIsBarChart(false)} className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-colors ${!isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Garis</button>
                           </div>
                       </Flex>
-                      <div className="h-56 mt-4">
-                          {isBarChart ? (
-                            <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} showGridLines={false} showTooltip={true} />
-                          ) : (
-                            <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} curveType="monotone" showGridLines={false} showTooltip={true} />
-                          )}
+                      
+                      {/* Kontainer Scroll Horizontal */}
+                      <div className="w-full overflow-x-auto custom-scrollbar pb-4 mt-4">
+                        <div className="h-64 min-w-[900px] pr-4">
+                            {isBarChart ? (
+                              <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={60} showGridLines={false} showTooltip={true} />
+                            ) : (
+                              <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={60} curveType="monotone" showGridLines={false} showTooltip={true} />
+                            )}
+                        </div>
                       </div>
-                      <Text className="text-[10px] text-slate-400 font-medium mt-6 text-center italic tracking-wide">Ketuk atau hover area grafik untuk melihat detail nominal harian.</Text>
+                      
+                      <Flex className="justify-between items-center mt-4">
+                        <Text className="text-[10px] text-slate-400 font-medium italic tracking-wide">Geser kiri/kanan untuk histori sebulan.</Text>
+                        <div className="flex bg-slate-50 p-1 rounded-xl ring-1 ring-slate-100 shrink-0 sm:hidden">
+                            <button onClick={() => setIsBarChart(true)} className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-colors ${isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Batang</button>
+                            <button onClick={() => setIsBarChart(false)} className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-colors ${!isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Garis</button>
+                        </div>
+                      </Flex>
                     </Card>
 
                   </div>
 
-                  {/* RIGHT COLUMN: WIDGETS & AI (Order-2 on Mobile & Laptop) */}
+                  {/* RIGHT COLUMN: WIDGETS & AI */}
                   <aside className="w-full xl:w-[380px] shrink-0 order-2 space-y-6 flex flex-col">
                     
                     {/* TARGET ANGGARAN */}
@@ -393,7 +404,7 @@ export default function App() {
                       </div>
                     </Card>
 
-                    {/* AI INSIGHTS AREA (DIPINDAH KE KANAN) */}
+                    {/* AI INSIGHTS AREA */}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-6">
                       <Card className="rounded-3xl border-none shadow-sm p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group hover:shadow-md transition-all">
                           <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><Zap size={140} /></div>
@@ -423,9 +434,7 @@ export default function App() {
               </div>
             )}
 
-            {/* =======================================================
-                MUTASI TAB (TANPA PIE CHART SESUAI REQUEST)
-               ======================================================== */}
+            {/* TAB: MUTASI */}
             {activeTab === 'ledger' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto space-y-6">
                   <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-slate-100 overflow-hidden bg-white p-0">
@@ -458,7 +467,7 @@ export default function App() {
                                       {t.type === 'MASUK' ? '+' : '-'}{formatRp(t.amount).replace('Rp', '').trim()}
                                   </td>
                                   <td className="px-6 py-4 text-center">
-                                      <button onClick={() => setDeleteId(t.id)} className="p-2.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all active:scale-90"><Trash2 size={18} strokeWidth={2.5}/></button>
+                                      <button onClick={() => setDeleteId(t.id)} className="p-2.5 text-slate-300 hover:text-rose-600 transition-all active:scale-90"><Trash2 size={18} strokeWidth={2.5}/></button>
                                   </td>
                                 </tr>
                             ))}
@@ -469,9 +478,7 @@ export default function App() {
               </div>
             )}
 
-            {/* =======================================================
-                ZAKAT TAB (TANPA PIE CHART SESUAI REQUEST)
-               ======================================================== */}
+            {/* TAB: ZAKAT */}
             {activeTab === 'zakat' && (
               <div className="animate-in slide-in-from-bottom-6 duration-700 max-w-4xl mx-auto space-y-6">
                 <Card className="rounded-[3rem] p-10 lg:p-16 bg-gradient-to-br from-emerald-600 to-emerald-900 text-white text-center shadow-[0_40px_80px_rgba(5,150,105,0.2)] relative overflow-hidden group border border-emerald-500/30">
