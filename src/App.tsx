@@ -2,13 +2,11 @@
 /* eslint-disable */
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Activity, Loader2, Lock, CheckCircle2, LayoutDashboard, History, 
-  Search, RefreshCcw, Trash2, AlertTriangle, Target, Calculator, 
-  Coins, HeartHandshake, Wallet, Users, Home, Play, Heart, 
-  Smartphone, ShoppingBag, Globe, Coffee, Info, ArrowUpRight, 
-  ArrowDownRight, Zap, ChevronRight, ChevronLeft, Calendar, Menu, X, Settings, LogOut,
-  Sparkles, BarChart3, TrendingUp, Plus, FileText, Code2, Layers, Bell, ChevronDown,
-  LineChart as LineChartIcon
+  Wallet, TrendingUp, TrendingDown, Activity, 
+  Loader2, Lock, CheckCircle2, LayoutDashboard, 
+  History, PieChart as PieChartIcon, Search, 
+  Filter, Calendar, RefreshCcw, Trash2, AlertTriangle, Target,
+  ArrowUpRight, ArrowDownRight, Zap, Info, BarChart3, LineChart
 } from 'lucide-react';
 
 // --- IMPORT TREMOR COMPONENTS ---
@@ -18,9 +16,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V19.8 - RECOVERY ACTION)
- * UI: No-Scroll Optimized, Delete Feature Restored, Compact Typography
- * FIX: Tab Persistence & Trend Chart Reordered
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V19.9 - LAYOUT OPTIMIZATION)
+ * FIX: Desktop Grid Layout, Reusable Pie Chart Component
  */
 
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyslKsTua7BE8pwmFh1xfRZn7QhfQMSKbGYvY3nAxx6qu41iRXJLBK-z8AsKVSd2_g1ng/exec"; 
@@ -36,14 +33,13 @@ const DUMMY_DATA = [
 
 export default function App() {
   // --- 1. STATE MANAGEMENT ---
-  // 🔥 FIX 1: Ambil activeTab dari localStorage agar tidak reset saat direfresh
   const [activeTab, setActiveTab] = useState(localStorage.getItem('budgetin_last_tab') || 'overview');
   
-  const [transactions, setTransactions] = useState([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [userId, setUserId] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
   
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -51,14 +47,14 @@ export default function App() {
   const [viewDate, setViewDate] = useState(new Date());
   const [isBarChart, setIsBarChart] = useState(true);
   
-  const [deleteId, setDeleteId] = useState(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [monthlyBudget, setMonthlyBudget] = useState(5000000); 
   const [isSettingBudget, setIsSettingBudget] = useState(false);
 
   // --- 2. CORE ENGINE ---
-  const processIncomingData = (rawList) => {
-    return rawList.map((item) => {
+  const processIncomingData = (rawList: any[]) => {
+    return rawList.map((item: any) => {
       const d = new Date(item.date);
       return {
         ...item,
@@ -68,10 +64,10 @@ export default function App() {
         month: d.getMonth(),
         year: d.getFullYear()
       };
-    }).sort((a, b) => b.dateObj - a.dateObj);
+    }).sort((a: any, b: any) => b.dateObj - a.dateObj);
   };
 
-  const fetchData = (idFromUrl) => {
+  const fetchData = (idFromUrl: string) => {
     setLoading(true);
     fetch(`${GAS_API_URL}?userid=${idFromUrl}`)
       .then(res => res.json())
@@ -119,13 +115,12 @@ export default function App() {
     if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
   }, []);
 
-  // 🔥 FIX 1: Simpan state tab ke localStorage setiap kali user berpindah tab
   useEffect(() => {
     localStorage.setItem('budgetin_last_tab', activeTab);
   }, [activeTab]);
 
   // --- 3. ANALYTICS LOGIC ---
-  const changeMonth = (offset) => {
+  const changeMonth = (offset: number) => {
     const newDate = new Date(viewDate);
     newDate.setMonth(newDate.getMonth() + offset);
     setViewDate(newDate);
@@ -159,7 +154,7 @@ export default function App() {
   }, [transactions, viewDate]);
 
   const categoryData = useMemo(() => {
-    const cats = {};
+    const cats: any = {};
     filteredByMonth.filter(t => t.type?.toUpperCase() === 'KELUAR').forEach(t => {
       cats[t.category] = (cats[t.category] || 0) + Number(t.amount);
     });
@@ -167,7 +162,7 @@ export default function App() {
   }, [filteredByMonth]);
 
   const leakageInfo = useMemo(() => {
-    const counts = filteredByMonth.filter(t => t.type === 'KELUAR').reduce((acc, curr) => {
+    const counts = filteredByMonth.filter(t => t.type === 'KELUAR').reduce((acc: any, curr: any) => {
       acc[curr.category] = (acc[curr.category] || 0) + 1;
       return acc;
     }, {});
@@ -180,10 +175,14 @@ export default function App() {
   const nishabTahunan = 85 * emasHarga;
   const wajibZakat = stats.balance >= nishabTahunan;
 
-  const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
-  const axisFormatter = (num) => new Intl.NumberFormat('id-ID', { notation: 'compact', compactDisplay: 'short' }).format(num);
+  const formatRp = (num: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
+  const formatShortRp = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'jt';
+    if (num >= 1000) return (num / 1000).toFixed(0) + 'rb';
+    return num;
+  };
 
-  const handleSaveBudget = (val) => {
+  const handleSaveBudget = (val: string) => {
     let newVal = parseInt(val);
     if (isNaN(newVal) || newVal < 0) newVal = 0;
     setMonthlyBudget(newVal);
@@ -191,8 +190,59 @@ export default function App() {
     setIsSettingBudget(false);
   };
 
-  const tremorColors = ["emerald-800", "emerald-600", "rose-500", "amber-500", "slate-800", "indigo-500", "cyan-600", "purple-500"];
-  const hexColors = ["#064E3B", "#10B981", "#F43F5E", "#F59E0B", "#1E293B", "#6366F1", "#0891B2", "#A855F7"];
+  const hexColors = ['#e11d48', '#fb7185', '#f43f5e', '#be123c', '#9f1239', '#064E3B', '#10B981', '#F59E0B', '#6366F1'];
+  const totalCategoryAmount = categoryData.reduce((sum, cat) => sum + cat.amount, 0);
+
+  // --- REUSABLE PIE CHART COMPONENT ---
+  const AllocationCard = () => (
+    <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white flex flex-col hover:shadow-md transition-all w-full">
+      <div className="flex items-center gap-2 mb-8">
+        <PieChartIcon className="w-6 h-6 text-emerald-600" />
+        <h3 className="text-xl font-black text-slate-800 tracking-tight">Klasifikasi Pengeluaran</h3>
+      </div>
+      
+      <div className="flex flex-col md:flex-row items-center gap-8 justify-center w-full">
+        {categoryData.length > 0 ? (
+          <>
+            {/* Chart Area */}
+            <div className="w-full md:w-1/2 flex justify-center">
+              <div className="relative w-52 h-52 transform hover:scale-105 transition-transform duration-500">
+                <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90 drop-shadow-md">
+                  {categoryData.map((cat, i) => {
+                    const dashArray = (cat.amount / totalCategoryAmount) * 100;
+                    const offset = categoryData.slice(0, i).reduce((sum, c) => sum + (c.amount / totalCategoryAmount) * 100, 0);
+                    const color = hexColors[i % hexColors.length];
+                    return (
+                      <circle key={cat.name} cx="18" cy="18" r="15.915" fill="transparent" stroke={color} strokeWidth="4.5" strokeDasharray={`${dashArray} ${100 - dashArray}`} strokeDashoffset={-offset} className="transition-all duration-1000" />
+                    );
+                  })}
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Total Outflow</p>
+                  <p className="text-lg font-black text-slate-800 tracking-tighter">Rp {Math.round(totalCategoryAmount/1000)}k</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Legend Area */}
+            <div className="w-full md:w-1/2 space-y-3 overflow-y-auto max-h-52 pr-2 custom-scrollbar">
+              {categoryData.map((cat, idx) => (
+                <div key={idx} className="flex items-center justify-between group p-2 rounded-xl hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3.5 h-3.5 rounded-full shadow-sm group-hover:scale-125 transition-transform" style={{ backgroundColor: hexColors[idx % hexColors.length] }}></div>
+                    <span className="text-xs font-bold text-slate-600 truncate max-w-[130px]">{cat.name}</span>
+                  </div>
+                  <span className="text-xs font-black text-slate-900">{formatRp(cat.amount)}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="w-full py-12 text-center text-slate-300 font-bold uppercase tracking-widest text-xs italic">Belum Ada Pengeluaran Bulan Ini</div>
+        )}
+      </div>
+    </Card>
+  );
 
   // --- 4. RENDERERS ---
   if (loading) return (
@@ -202,15 +252,13 @@ export default function App() {
     </div>
   );
 
-  const NavItem = ({ id, label, icon: Icon }) => (
+  const NavItem = ({ id, label, icon: Icon }: any) => (
     <button 
       onClick={() => { setActiveTab(id); setIsMobileSidebarOpen(false); }} 
       className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold transition-all group ${activeTab === id ? 'bg-emerald-600 text-white shadow-[0_8px_16px_rgba(16,185,129,0.15)]' : 'text-slate-500 hover:bg-slate-50'}`}
     >
       <div className="shrink-0"><Icon size={20} strokeWidth={2.5} /></div>
-      <span className="text-[13px] whitespace-nowrap">
-        {label}
-      </span>
+      <span className="text-[13px] whitespace-nowrap">{label}</span>
     </button>
   );
 
@@ -219,16 +267,11 @@ export default function App() {
       
       {/* --- BACKDROP MOBILE --- */}
       {isMobileSidebarOpen && (
-        <div 
-          onClick={() => setIsMobileSidebarOpen(false)} 
-          className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-[90] lg:hidden animate-in fade-in"
-        />
+        <div onClick={() => setIsMobileSidebarOpen(false)} className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-[90] lg:hidden animate-in fade-in" />
       )}
 
       {/* --- SIDEBAR --- */}
-      <aside 
-        className={`fixed inset-y-0 left-0 z-[100] bg-white border-r border-slate-100 flex flex-col transition-all duration-300 shadow-2xl lg:shadow-none lg:relative w-64 ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
-      >
+      <aside className={`fixed inset-y-0 left-0 z-[100] bg-white border-r border-slate-100 flex flex-col transition-all duration-300 shadow-2xl lg:shadow-none lg:relative w-64 ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="h-full flex flex-col p-5 overflow-hidden">
           <div className="flex items-center gap-4 mb-8 pl-2">
             <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-md shrink-0"><Activity className="text-white" size={20} strokeWidth={3} /></div>
@@ -242,8 +285,6 @@ export default function App() {
             <NavItem id="ledger" label="Riwayat Mutasi" icon={History} />
             <NavItem id="zakat" label="Kalkulator Zakat" icon={Calculator} />
             <div className="h-[1px] bg-slate-50 my-4 mx-2"></div>
-            {/* Menu Pengaturan di-hide sementara sesuai evaluasi */}
-            {/* <NavItem id="settings" label="Pengaturan" icon={Settings} /> */}
           </nav>
           <div className="pt-6 border-t border-slate-50">
             <button className="w-full flex items-center justify-start gap-4 px-4 py-3 text-slate-400 hover:text-rose-500 font-bold text-[13px] transition-colors"><LogOut size={18} strokeWidth={2.5}/> Keluar</button>
@@ -319,90 +360,44 @@ export default function App() {
                   </Card>
                 </div>
 
-                {/* GRID BAWAH: KIRI (AI INSIGHTS) & KANAN (ALOKASI + TREN HARIAN) */}
-                <div className="flex flex-col xl:flex-row gap-6">
+                {/* 🔥 BALANCED GRID LAYOUT: KIRI (Charts) & KANAN (Insights) */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                   
-                  {/* KOLOM KIRI */}
-                  <div className="flex-1 min-w-0 order-2 xl:order-1 space-y-6">
-                    {/* AI INSIGHTS AREA */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <Card className="rounded-3xl border-none shadow-lg p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group">
-                          <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><Zap size={140} /></div>
-                          <Title className="font-bold text-slate-900 uppercase text-[10px] tracking-widest flex items-center gap-2 mb-6">
-                            <TrendingUp size={18} strokeWidth={2.5} className="text-emerald-600"/> Efisiensi
-                          </Title>
-                          <div className="space-y-4">
-                            <Flex><Text className="font-bold text-emerald-800 text-[10px] uppercase">Potensi hemat</Text><Text className="font-black text-emerald-700 text-3xl">24%</Text></Flex>
-                            <ProgressBar value={24} color="emerald" className="h-3 rounded-full shadow-inner" />
-                          </div>
-                          <Text className="mt-8 text-[11px] font-medium text-slate-600 italic border-l-4 border-emerald-500 pl-4 py-1 leading-relaxed">
-                              {leakageInfo.count > 1 ? `"Detektor AI mendeteksi pengeluaran berulang pada kategori ${leakageInfo.name.toLowerCase()}."` : `"Arus kas Anda bulan ini sangat efisien. Pertahankan!"`}
-                          </Text>
-                      </Card>
-                      <Card className="rounded-3xl border-none shadow-lg p-7 bg-slate-900 text-white overflow-hidden relative border-t border-white/5">
-                          <div className="absolute -bottom-10 -right-10 opacity-10"><Activity size={180} /></div>
-                          <Title className="text-emerald-400 font-bold uppercase text-[10px] tracking-[0.3em] mb-8 leading-none">Batas harian aman</Title>
-                          <Metric className="text-white font-black text-4xl tracking-tighter drop-shadow-md">{formatRp(stats.balance > 0 ? stats.balance / 30 : 0).replace('Rp', '').trim()}</Metric>
-                          <Text className="text-emerald-100 font-medium text-[10px] mt-6 opacity-80 leading-relaxed">Estimasi jatah pengeluaran harian agar saldo cukup dan aman sampai akhir bulan.</Text>
-                      </Card>
-                    </div>
-                  </div>
-
-                  {/* KOLOM KANAN */}
-                  <aside className="w-full xl:w-96 shrink-0 order-1 xl:order-2 space-y-6">
+                  {/* LEFT COLUMN (WIDER): Menampilkan Pie Chart lalu Tren Harian */}
+                  <div className="xl:col-span-2 space-y-6 flex flex-col">
                     
-                    {/* ALOKASI DANA */}
-                    <Card className="rounded-[2.5rem] border-none shadow-lg ring-1 ring-slate-100 p-8 bg-white flex flex-col hover:shadow-xl transition-shadow">
-                      <Title className="font-bold text-[10px] text-slate-400 uppercase tracking-[0.3em] mb-8 border-l-4 border-emerald-600 pl-3 leading-none">Alokasi dana</Title>
-                      <DonutChart
-                        className="h-52"
-                        data={categoryData}
-                        category="amount"
-                        index="name"
-                        valueFormatter={axisFormatter}
-                        colors={tremorColors}
-                        showAnimation={true}
-                        showTooltip={true}
-                      />
-                      {/* Custom Legend - Now mapping all categories */}
-                      <div className="mt-8 space-y-3 max-h-48 overflow-y-auto custom-scrollbar pr-2">
-                        {categoryData.length > 0 ? categoryData.map((c, i) => (
-                          <Flex key={c.name} className="border-b border-slate-50 pb-3 last:border-0 last:pb-0">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: hexColors[i % hexColors.length] }}></div>
-                              <Text className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate max-w-[120px]">{c.name}</Text>
-                            </div>
-                            <Text className="font-black text-slate-900 text-[11px] tracking-tighter">{formatRp(c.amount)}</Text>
-                          </Flex>
-                        )) : (
-                          <Text className="text-center text-xs text-slate-400 font-medium italic">Belum ada pengeluaran bulan ini.</Text>
-                        )}
-                      </div>
-                    </Card>
+                    {/* ALOKASI DANA (PIE CHART) - Dibuat Reusable & Lebar di Desktop */}
+                    <AllocationCard />
 
-                    {/* 🔥 FIX 2: TREN HARIAN PINDAH KE SINI (DI BAWAH PIE CHART) */}
-                    <Card className="rounded-[2.5rem] border-none shadow-xl p-6 lg:p-8 bg-white ring-1 ring-slate-100/30">
-                      <Flex className="mb-2 items-start justify-between">
-                          <div>
-                            <Title className="font-bold text-slate-900 border-l-4 border-emerald-600 pl-3 text-[11px] tracking-widest leading-none uppercase">Tren harian</Title>
+                    {/* TREN HARIAN (Di Bawah Pie Chart) */}
+                    <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white relative hover:shadow-md transition-all">
+                      <Flex className="mb-6 items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            {isBarChart ? <BarChart3 className="w-5 h-5 text-emerald-600" /> : <LineChartIcon className="w-5 h-5 text-emerald-600" />}
+                            <Title className="font-black text-slate-900 text-xl tracking-tight">Tren Harian</Title>
                           </div>
                           <div className="flex bg-slate-50 p-1 rounded-xl ring-1 ring-slate-100 shrink-0">
-                              <button onClick={() => setIsBarChart(true)} className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase ${isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Batang</button>
-                              <button onClick={() => setIsBarChart(false)} className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase ${!isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Garis</button>
+                              <button onClick={() => setIsBarChart(true)} className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-colors ${isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Batang</button>
+                              <button onClick={() => setIsBarChart(false)} className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-colors ${!isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Garis</button>
                           </div>
                       </Flex>
-                      <div className="h-48 mt-4">
+                      <div className="h-56 mt-4">
                           {isBarChart ? (
                             <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} showGridLines={false} showTooltip={true} />
                           ) : (
                             <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} curveType="monotone" showGridLines={false} showTooltip={true} />
                           )}
                       </div>
-                      <Text className="text-[9px] text-slate-400 font-medium mt-4 text-center italic">Ketuk/Hover area grafik untuk melihat detail nominal.</Text>
+                      <Text className="text-[10px] text-slate-400 font-medium mt-6 text-center italic tracking-wide">Ketuk atau hover area grafik untuk melihat detail nominal.</Text>
                     </Card>
 
+                  </div>
+
+                  {/* RIGHT COLUMN (NARROWER): Target Anggaran & AI Insights */}
+                  <aside className="xl:col-span-1 space-y-6 flex flex-col">
+                    
                     {/* TARGET ANGGARAN */}
-                    <Card className="rounded-[2.5rem] border-none shadow-lg ring-1 ring-slate-100 p-8 bg-white overflow-hidden relative">
+                    <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-8 bg-white overflow-hidden relative hover:shadow-md transition-all">
                       <Flex className="mb-8 items-center justify-between">
                           <Title className="text-[10px] font-bold text-slate-800 tracking-[0.3em] leading-none uppercase">Target anggaran</Title>
                           <button onClick={() => setIsSettingBudget(true)} className="p-2 bg-slate-50 rounded-xl text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all shadow-sm"><Settings size={16}/></button>
@@ -435,6 +430,28 @@ export default function App() {
                       </div>
                     </Card>
 
+                    {/* AI INSIGHTS AREA */}
+                    <Card className="rounded-3xl border-none shadow-sm p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group hover:shadow-md transition-all">
+                        <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><Zap size={140} /></div>
+                        <Title className="font-bold text-slate-900 uppercase text-[10px] tracking-widest flex items-center gap-2 mb-6">
+                          <TrendingUp size={18} strokeWidth={2.5} className="text-emerald-600"/> Efisiensi
+                        </Title>
+                        <div className="space-y-4">
+                          <Flex><Text className="font-bold text-emerald-800 text-[10px] uppercase">Potensi hemat</Text><Text className="font-black text-emerald-700 text-3xl">24%</Text></Flex>
+                          <ProgressBar value={24} color="emerald" className="h-3 rounded-full shadow-inner" />
+                        </div>
+                        <Text className="mt-8 text-[11px] font-medium text-slate-600 italic border-l-4 border-emerald-500 pl-4 py-1 leading-relaxed">
+                            {leakageInfo.count > 1 ? `"Detektor AI mendeteksi pengeluaran berulang pada kategori ${leakageInfo.name.toLowerCase()}."` : `"Arus kas Anda bulan ini sangat efisien. Pertahankan!"`}
+                        </Text>
+                    </Card>
+
+                    <Card className="rounded-3xl border-none shadow-sm p-7 bg-slate-900 text-white overflow-hidden relative border-t border-white/5 hover:shadow-md transition-all">
+                        <div className="absolute -bottom-10 -right-10 opacity-10"><Activity size={180} /></div>
+                        <Title className="text-emerald-400 font-bold uppercase text-[10px] tracking-[0.3em] mb-8 leading-none">Batas harian aman</Title>
+                        <Metric className="text-white font-black text-4xl tracking-tighter drop-shadow-md">{formatRp(stats.balance > 0 ? stats.balance / 30 : 0).replace('Rp', '').trim()}</Metric>
+                        <Text className="text-emerald-100 font-medium text-[10px] mt-6 opacity-80 leading-relaxed">Estimasi jatah pengeluaran harian agar saldo cukup dan aman sampai akhir bulan.</Text>
+                    </Card>
+
                   </aside>
                 </div>
 
@@ -443,7 +460,7 @@ export default function App() {
 
             {/* MUTASI TAB */}
             {activeTab === 'ledger' && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto space-y-8">
                   <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-slate-100 overflow-hidden bg-white p-0">
                     <div className="p-6 lg:p-8 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-6 bg-slate-50/50">
                       <Title className="font-black text-slate-900 text-2xl tracking-tighter">Riwayat Transaksi</Title>
@@ -493,6 +510,9 @@ export default function App() {
                       </table>
                     </div>
                   </Card>
+
+                  {/* 🔥 PIE CHART DITAMPILKAN DI BAWAH MUTASI */}
+                  <AllocationCard />
               </div>
             )}
 
@@ -547,6 +567,11 @@ export default function App() {
                       </div>
                   </Card>
                 </Grid>
+
+                {/* 🔥 PIE CHART DITAMPILKAN DI BAWAH KALKULATOR ZAKAT */}
+                <div className="pt-4">
+                  <AllocationCard />
+                </div>
               </div>
             )}
 
