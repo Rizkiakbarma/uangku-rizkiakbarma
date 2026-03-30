@@ -16,8 +16,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V19.9 - LAYOUT OPTIMIZATION)
- * FIX: Desktop Grid Layout, Reusable Pie Chart Component
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V20.0 - STABLE & RESPONSIVE)
+ * FIX: White Screen Crash, Safe LocalStorage, Mobile Flex Order, Reusable UI
  */
 
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyslKsTua7BE8pwmFh1xfRZn7QhfQMSKbGYvY3nAxx6qu41iRXJLBK-z8AsKVSd2_g1ng/exec"; 
@@ -32,9 +32,13 @@ const DUMMY_DATA = [
 ];
 
 export default function App() {
-  // --- 1. STATE MANAGEMENT ---
-  const [activeTab, setActiveTab] = useState(localStorage.getItem('budgetin_last_tab') || 'overview');
-  
+  // --- 1. STATE MANAGEMENT (Anti-Crash LocalStorage) ---
+  const getInitialTab = () => {
+    try { return localStorage.getItem('budgetin_last_tab') || 'overview'; } 
+    catch (e) { return 'overview'; }
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab());
   const [transactions, setTransactions] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -43,7 +47,6 @@ export default function App() {
   const [isDemo, setIsDemo] = useState(false);
   
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  
   const [viewDate, setViewDate] = useState(new Date());
   const [isBarChart, setIsBarChart] = useState(true);
   
@@ -111,12 +114,14 @@ export default function App() {
     }
     setUserId(idFromUrl);
     fetchData(idFromUrl);
-    const savedBudget = localStorage.getItem(`budgetin_budget_${idFromUrl}`);
-    if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
+    try {
+      const savedBudget = localStorage.getItem(`budgetin_budget_${idFromUrl}`);
+      if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
+    } catch (e) {}
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('budgetin_last_tab', activeTab);
+    try { localStorage.setItem('budgetin_last_tab', activeTab); } catch (e) {}
   }, [activeTab]);
 
   // --- 3. ANALYTICS LOGIC ---
@@ -176,73 +181,89 @@ export default function App() {
   const wajibZakat = stats.balance >= nishabTahunan;
 
   const formatRp = (num: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
-  const formatShortRp = (num: number) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'jt';
-    if (num >= 1000) return (num / 1000).toFixed(0) + 'rb';
-    return num;
-  };
+  const axisFormatter = (num: number) => new Intl.NumberFormat('id-ID', { notation: 'compact', compactDisplay: 'short' }).format(num);
 
   const handleSaveBudget = (val: string) => {
     let newVal = parseInt(val);
     if (isNaN(newVal) || newVal < 0) newVal = 0;
     setMonthlyBudget(newVal);
-    if (userId) localStorage.setItem(`budgetin_budget_${userId}`, String(newVal));
+    if (userId) {
+      try { localStorage.setItem(`budgetin_budget_${userId}`, String(newVal)); } catch (e) {}
+    }
     setIsSettingBudget(false);
   };
 
   const hexColors = ['#e11d48', '#fb7185', '#f43f5e', '#be123c', '#9f1239', '#064E3B', '#10B981', '#F59E0B', '#6366F1'];
   const totalCategoryAmount = categoryData.reduce((sum, cat) => sum + cat.amount, 0);
 
-  // --- REUSABLE PIE CHART COMPONENT ---
-  const AllocationCard = () => (
-    <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white flex flex-col hover:shadow-md transition-all w-full">
-      <div className="flex items-center gap-2 mb-8">
-        <PieChartIcon className="w-6 h-6 text-emerald-600" />
-        <h3 className="text-xl font-black text-slate-800 tracking-tight">Klasifikasi Pengeluaran</h3>
-      </div>
+  // --- REUSABLE PIE CHART FUNCTION (Aman & Anti-Crash) ---
+  const renderAllocationCard = (isSidebar = false) => {
+    // Styling dinamis tergantung di mana dia diletakkan (Sidebar Dashboard vs Tab Utama)
+    const layoutClass = isSidebar 
+      ? "flex flex-col items-center gap-6 justify-center w-full" 
+      : "flex flex-col md:flex-row items-center gap-8 justify-center w-full";
       
-      <div className="flex flex-col md:flex-row items-center gap-8 justify-center w-full">
-        {categoryData.length > 0 ? (
-          <>
-            {/* Chart Area */}
-            <div className="w-full md:w-1/2 flex justify-center">
-              <div className="relative w-52 h-52 transform hover:scale-105 transition-transform duration-500">
-                <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90 drop-shadow-md">
-                  {categoryData.map((cat, i) => {
-                    const dashArray = (cat.amount / totalCategoryAmount) * 100;
-                    const offset = categoryData.slice(0, i).reduce((sum, c) => sum + (c.amount / totalCategoryAmount) * 100, 0);
-                    const color = hexColors[i % hexColors.length];
-                    return (
-                      <circle key={cat.name} cx="18" cy="18" r="15.915" fill="transparent" stroke={color} strokeWidth="4.5" strokeDasharray={`${dashArray} ${100 - dashArray}`} strokeDashoffset={-offset} className="transition-all duration-1000" />
-                    );
-                  })}
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Total Outflow</p>
-                  <p className="text-lg font-black text-slate-800 tracking-tighter">Rp {Math.round(totalCategoryAmount/1000)}k</p>
+    const chartContainerClass = isSidebar 
+      ? "w-full flex justify-center" 
+      : "w-full md:w-1/2 flex justify-center";
+      
+    const legendContainerClass = isSidebar 
+      ? "w-full space-y-3 overflow-y-auto max-h-52 pr-2 custom-scrollbar" 
+      : "w-full md:w-1/2 space-y-3 overflow-y-auto max-h-52 pr-2 custom-scrollbar";
+
+    // Mencegah error pembagian dengan 0
+    const safeTotal = totalCategoryAmount > 0 ? totalCategoryAmount : 1;
+
+    return (
+      <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white flex flex-col hover:shadow-md transition-all w-full">
+        <div className="flex items-center gap-2 mb-8">
+          <PieChartIcon className="w-6 h-6 text-emerald-600" />
+          <h3 className="text-xl font-black text-slate-800 tracking-tight">Klasifikasi Pengeluaran</h3>
+        </div>
+        
+        <div className={layoutClass}>
+          {categoryData.length > 0 ? (
+            <>
+              {/* Chart Area */}
+              <div className={chartContainerClass}>
+                <div className="relative w-48 h-48 sm:w-52 sm:h-52 transform hover:scale-105 transition-transform duration-500">
+                  <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90 drop-shadow-md">
+                    {categoryData.map((cat, i) => {
+                      const dashArray = (cat.amount / safeTotal) * 100;
+                      const offset = categoryData.slice(0, i).reduce((sum, c) => sum + (c.amount / safeTotal) * 100, 0);
+                      const color = hexColors[i % hexColors.length];
+                      return (
+                        <circle key={cat.name} cx="18" cy="18" r="15.915" fill="transparent" stroke={color} strokeWidth="4.5" strokeDasharray={`${dashArray} ${100 - dashArray}`} strokeDashoffset={-offset} className="transition-all duration-1000" />
+                      );
+                    })}
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Total Outflow</p>
+                    <p className="text-sm font-black text-slate-800 tracking-tighter">Rp {Math.round(totalCategoryAmount/1000)}k</p>
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            {/* Legend Area */}
-            <div className="w-full md:w-1/2 space-y-3 overflow-y-auto max-h-52 pr-2 custom-scrollbar">
-              {categoryData.map((cat, idx) => (
-                <div key={idx} className="flex items-center justify-between group p-2 rounded-xl hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3.5 h-3.5 rounded-full shadow-sm group-hover:scale-125 transition-transform" style={{ backgroundColor: hexColors[idx % hexColors.length] }}></div>
-                    <span className="text-xs font-bold text-slate-600 truncate max-w-[130px]">{cat.name}</span>
+              
+              {/* Legend Area */}
+              <div className={legendContainerClass}>
+                {categoryData.map((cat, idx) => (
+                  <div key={idx} className="flex items-center justify-between group p-2 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3.5 h-3.5 rounded-full shadow-sm group-hover:scale-125 transition-transform" style={{ backgroundColor: hexColors[idx % hexColors.length] }}></div>
+                      <span className="text-xs font-bold text-slate-600 truncate max-w-[130px]">{cat.name}</span>
+                    </div>
+                    <span className="text-xs font-black text-slate-900">{formatRp(cat.amount)}</span>
                   </div>
-                  <span className="text-xs font-black text-slate-900">{formatRp(cat.amount)}</span>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="w-full py-12 text-center text-slate-300 font-bold uppercase tracking-widest text-xs italic">Belum Ada Pengeluaran Bulan Ini</div>
-        )}
-      </div>
-    </Card>
-  );
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="w-full py-12 text-center text-slate-300 font-bold uppercase tracking-widest text-xs italic">Belum Ada Pengeluaran Bulan Ini</div>
+          )}
+        </div>
+      </Card>
+    );
+  };
 
   // --- 4. RENDERERS ---
   if (loading) return (
@@ -325,7 +346,9 @@ export default function App() {
 
         <div className="flex-1 p-5 lg:p-7 max-w-8xl mx-auto w-full">
             
-            {/* OVERVIEW TAB */}
+            {/* =======================================================
+                OVERVIEW TAB 
+               ======================================================== */}
             {activeTab === 'overview' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                 
@@ -360,16 +383,13 @@ export default function App() {
                   </Card>
                 </div>
 
-                {/* 🔥 BALANCED GRID LAYOUT: KIRI (Charts) & KANAN (Insights) */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                {/* 🔥 BALANCED GRID LAYOUT */}
+                <div className="flex flex-col xl:flex-row gap-6">
                   
-                  {/* LEFT COLUMN (WIDER): Menampilkan Pie Chart lalu Tren Harian */}
-                  <div className="xl:col-span-2 space-y-6 flex flex-col">
+                  {/* KOLOM KIRI (TREN & AI) -> Tampil ke-2 di Mobile, ke-1 di Laptop */}
+                  <div className="flex-1 min-w-0 order-2 xl:order-1 space-y-6 flex flex-col">
                     
-                    {/* ALOKASI DANA (PIE CHART) - Dibuat Reusable & Lebar di Desktop */}
-                    <AllocationCard />
-
-                    {/* TREN HARIAN (Di Bawah Pie Chart) */}
+                    {/* TREN HARIAN */}
                     <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white relative hover:shadow-md transition-all">
                       <Flex className="mb-6 items-start justify-between">
                           <div className="flex items-center gap-2">
@@ -391,11 +411,38 @@ export default function App() {
                       <Text className="text-[10px] text-slate-400 font-medium mt-6 text-center italic tracking-wide">Ketuk atau hover area grafik untuk melihat detail nominal.</Text>
                     </Card>
 
+                    {/* AI INSIGHTS AREA */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card className="rounded-3xl border-none shadow-sm p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group hover:shadow-md transition-all">
+                          <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><Zap size={140} /></div>
+                          <Title className="font-bold text-slate-900 uppercase text-[10px] tracking-widest flex items-center gap-2 mb-6">
+                            <TrendingUp size={18} strokeWidth={2.5} className="text-emerald-600"/> Efisiensi
+                          </Title>
+                          <div className="space-y-4">
+                            <Flex><Text className="font-bold text-emerald-800 text-[10px] uppercase">Potensi hemat</Text><Text className="font-black text-emerald-700 text-3xl">24%</Text></Flex>
+                            <ProgressBar value={24} color="emerald" className="h-3 rounded-full shadow-inner" />
+                          </div>
+                          <Text className="mt-8 text-[11px] font-medium text-slate-600 italic border-l-4 border-emerald-500 pl-4 py-1 leading-relaxed">
+                              {leakageInfo.count > 1 ? `"Detektor AI mendeteksi pengeluaran berulang pada kategori ${leakageInfo.name.toLowerCase()}."` : `"Arus kas Anda bulan ini sangat efisien. Pertahankan!"`}
+                          </Text>
+                      </Card>
+
+                      <Card className="rounded-3xl border-none shadow-sm p-7 bg-slate-900 text-white overflow-hidden relative border-t border-white/5 hover:shadow-md transition-all">
+                          <div className="absolute -bottom-10 -right-10 opacity-10"><Activity size={180} /></div>
+                          <Title className="text-emerald-400 font-bold uppercase text-[10px] tracking-[0.3em] mb-8 leading-none">Batas harian aman</Title>
+                          <Metric className="text-white font-black text-4xl tracking-tighter drop-shadow-md">{formatRp(stats.balance > 0 ? stats.balance / 30 : 0).replace('Rp', '').trim()}</Metric>
+                          <Text className="text-emerald-100 font-medium text-[10px] mt-6 opacity-80 leading-relaxed">Estimasi jatah pengeluaran harian agar saldo cukup dan aman sampai akhir bulan.</Text>
+                      </Card>
+                    </div>
+
                   </div>
 
-                  {/* RIGHT COLUMN (NARROWER): Target Anggaran & AI Insights */}
-                  <aside className="xl:col-span-1 space-y-6 flex flex-col">
+                  {/* KOLOM KANAN (PIE CHART & TARGET) -> Tampil ke-1 di Mobile, ke-2 di Laptop */}
+                  <aside className="w-full xl:w-96 shrink-0 order-1 xl:order-2 space-y-6 flex flex-col">
                     
+                    {/* ALOKASI DANA (PIE CHART) */}
+                    {renderAllocationCard(true)}
+
                     {/* TARGET ANGGARAN */}
                     <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-8 bg-white overflow-hidden relative hover:shadow-md transition-all">
                       <Flex className="mb-8 items-center justify-between">
@@ -430,35 +477,15 @@ export default function App() {
                       </div>
                     </Card>
 
-                    {/* AI INSIGHTS AREA */}
-                    <Card className="rounded-3xl border-none shadow-sm p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group hover:shadow-md transition-all">
-                        <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><Zap size={140} /></div>
-                        <Title className="font-bold text-slate-900 uppercase text-[10px] tracking-widest flex items-center gap-2 mb-6">
-                          <TrendingUp size={18} strokeWidth={2.5} className="text-emerald-600"/> Efisiensi
-                        </Title>
-                        <div className="space-y-4">
-                          <Flex><Text className="font-bold text-emerald-800 text-[10px] uppercase">Potensi hemat</Text><Text className="font-black text-emerald-700 text-3xl">24%</Text></Flex>
-                          <ProgressBar value={24} color="emerald" className="h-3 rounded-full shadow-inner" />
-                        </div>
-                        <Text className="mt-8 text-[11px] font-medium text-slate-600 italic border-l-4 border-emerald-500 pl-4 py-1 leading-relaxed">
-                            {leakageInfo.count > 1 ? `"Detektor AI mendeteksi pengeluaran berulang pada kategori ${leakageInfo.name.toLowerCase()}."` : `"Arus kas Anda bulan ini sangat efisien. Pertahankan!"`}
-                        </Text>
-                    </Card>
-
-                    <Card className="rounded-3xl border-none shadow-sm p-7 bg-slate-900 text-white overflow-hidden relative border-t border-white/5 hover:shadow-md transition-all">
-                        <div className="absolute -bottom-10 -right-10 opacity-10"><Activity size={180} /></div>
-                        <Title className="text-emerald-400 font-bold uppercase text-[10px] tracking-[0.3em] mb-8 leading-none">Batas harian aman</Title>
-                        <Metric className="text-white font-black text-4xl tracking-tighter drop-shadow-md">{formatRp(stats.balance > 0 ? stats.balance / 30 : 0).replace('Rp', '').trim()}</Metric>
-                        <Text className="text-emerald-100 font-medium text-[10px] mt-6 opacity-80 leading-relaxed">Estimasi jatah pengeluaran harian agar saldo cukup dan aman sampai akhir bulan.</Text>
-                    </Card>
-
                   </aside>
                 </div>
 
               </div>
             )}
 
-            {/* MUTASI TAB */}
+            {/* =======================================================
+                MUTASI TAB 
+               ======================================================== */}
             {activeTab === 'ledger' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto space-y-8">
                   <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-slate-100 overflow-hidden bg-white p-0">
@@ -511,12 +538,14 @@ export default function App() {
                     </div>
                   </Card>
 
-                  {/* 🔥 PIE CHART DITAMPILKAN DI BAWAH MUTASI */}
-                  <AllocationCard />
+                  {/* 🔥 PIE CHART DI BAWAH MUTASI (LEBAR & RESPONSIVE) */}
+                  {renderAllocationCard(false)}
               </div>
             )}
 
-            {/* ZAKAT TAB */}
+            {/* =======================================================
+                ZAKAT TAB 
+               ======================================================== */}
             {activeTab === 'zakat' && (
               <div className="animate-in slide-in-from-bottom-6 duration-700 max-w-4xl mx-auto space-y-8">
                 <Card className="rounded-[3rem] p-10 lg:p-16 bg-gradient-to-br from-emerald-600 to-emerald-900 text-white text-center shadow-[0_40px_80px_rgba(5,150,105,0.2)] relative overflow-hidden group border border-emerald-500/30">
@@ -568,9 +597,9 @@ export default function App() {
                   </Card>
                 </Grid>
 
-                {/* 🔥 PIE CHART DITAMPILKAN DI BAWAH KALKULATOR ZAKAT */}
+                {/* 🔥 PIE CHART DI BAWAH ZAKAT (LEBAR & RESPONSIVE) */}
                 <div className="pt-4">
-                  <AllocationCard />
+                  {renderAllocationCard(false)}
                 </div>
               </div>
             )}
