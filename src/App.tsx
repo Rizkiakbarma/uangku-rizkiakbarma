@@ -18,8 +18,9 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V19.7 - UX & PERSISTENCE FIX)
- * UI: Explicit Nav, Compact Mutasi, Fixed Budget Storage, Smart Mobile Layout
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V19.8 - RECOVERY ACTION)
+ * UI: No-Scroll Optimized, Delete Feature Restored, Compact Typography
+ * FIX: Tab Persistence & Trend Chart Reordered
  */
 
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyslKsTua7BE8pwmFh1xfRZn7QhfQMSKbGYvY3nAxx6qu41iRXJLBK-z8AsKVSd2_g1ng/exec"; 
@@ -35,7 +36,9 @@ const DUMMY_DATA = [
 
 export default function App() {
   // --- 1. STATE MANAGEMENT ---
-  const [activeTab, setActiveTab] = useState('overview');
+  // 🔥 FIX 1: Ambil activeTab dari localStorage agar tidak reset saat direfresh
+  const [activeTab, setActiveTab] = useState(localStorage.getItem('budgetin_last_tab') || 'overview');
+  
   const [transactions, setTransactions] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -115,6 +118,11 @@ export default function App() {
     const savedBudget = localStorage.getItem(`budgetin_budget_${idFromUrl}`);
     if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
   }, []);
+
+  // 🔥 FIX 1: Simpan state tab ke localStorage setiap kali user berpindah tab
+  useEffect(() => {
+    localStorage.setItem('budgetin_last_tab', activeTab);
+  }, [activeTab]);
 
   // --- 3. ANALYTICS LOGIC ---
   const changeMonth = (offset) => {
@@ -311,32 +319,11 @@ export default function App() {
                   </Card>
                 </div>
 
-                {/* GRID BAWAH: KIRI (TREN) & KANAN (ALOKASI) */}
+                {/* GRID BAWAH: KIRI (AI INSIGHTS) & KANAN (ALOKASI + TREN HARIAN) */}
                 <div className="flex flex-col xl:flex-row gap-6">
                   
                   {/* KOLOM KIRI */}
                   <div className="flex-1 min-w-0 order-2 xl:order-1 space-y-6">
-                    {/* CHART AREA */}
-                    <Card className="rounded-[2.5rem] border-none shadow-xl p-6 lg:p-8 bg-white ring-1 ring-slate-100/30">
-                      <Flex className="mb-2 items-start justify-between">
-                          <div>
-                            <Title className="font-bold text-slate-900 border-l-4 border-emerald-600 pl-3 text-[11px] tracking-widest leading-none uppercase">Tren harian</Title>
-                            <Text className="text-[10px] text-slate-400 font-medium mt-3 ml-4 italic">Ketuk/Hover area grafik untuk melihat detail nominal.</Text>
-                          </div>
-                          <div className="flex bg-slate-50 p-1 rounded-xl ring-1 ring-slate-100 shrink-0">
-                              <button onClick={() => setIsBarChart(true)} className={`px-4 py-2 rounded-lg text-[9px] font-bold uppercase ${isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Batang</button>
-                              <button onClick={() => setIsBarChart(false)} className={`px-4 py-2 rounded-lg text-[9px] font-bold uppercase ${!isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Garis</button>
-                          </div>
-                      </Flex>
-                      <div className="h-64 mt-4">
-                          {isBarChart ? (
-                            <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={60} showGridLines={false} showTooltip={true} />
-                          ) : (
-                            <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={60} curveType="monotone" showGridLines={false} showTooltip={true} />
-                          )}
-                      </div>
-                    </Card>
-
                     {/* AI INSIGHTS AREA */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <Card className="rounded-3xl border-none shadow-lg p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group">
@@ -391,6 +378,27 @@ export default function App() {
                           <Text className="text-center text-xs text-slate-400 font-medium italic">Belum ada pengeluaran bulan ini.</Text>
                         )}
                       </div>
+                    </Card>
+
+                    {/* 🔥 FIX 2: TREN HARIAN PINDAH KE SINI (DI BAWAH PIE CHART) */}
+                    <Card className="rounded-[2.5rem] border-none shadow-xl p-6 lg:p-8 bg-white ring-1 ring-slate-100/30">
+                      <Flex className="mb-2 items-start justify-between">
+                          <div>
+                            <Title className="font-bold text-slate-900 border-l-4 border-emerald-600 pl-3 text-[11px] tracking-widest leading-none uppercase">Tren harian</Title>
+                          </div>
+                          <div className="flex bg-slate-50 p-1 rounded-xl ring-1 ring-slate-100 shrink-0">
+                              <button onClick={() => setIsBarChart(true)} className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase ${isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Batang</button>
+                              <button onClick={() => setIsBarChart(false)} className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase ${!isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Garis</button>
+                          </div>
+                      </Flex>
+                      <div className="h-48 mt-4">
+                          {isBarChart ? (
+                            <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} showGridLines={false} showTooltip={true} />
+                          ) : (
+                            <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} curveType="monotone" showGridLines={false} showTooltip={true} />
+                          )}
+                      </div>
+                      <Text className="text-[9px] text-slate-400 font-medium mt-4 text-center italic">Ketuk/Hover area grafik untuk melihat detail nominal.</Text>
                     </Card>
 
                     {/* TARGET ANGGARAN */}
