@@ -19,9 +19,9 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V24.0 - SUPABASE REAL-TIME ENGINE)
- * Fix: Migrasi total dari Google Sheets ke Supabase. 
- * UI: 30-Day Scrollable Chart, Pie Chart Optimized, Anti-Crash.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V25.0 - THE BARAKAH ENGINE)
+ * Fix: Integrasi Barakah Score (Logic 2.5%), Supabase Real-time, 30 Days Trend.
+ * UI: Optimized for Sharia Identity.
  */
 
 // 🔥 KONEKSI SUPABASE KAMU
@@ -55,14 +55,14 @@ export default function App() {
   const [monthlyBudget, setMonthlyBudget] = useState(5000000); 
   const [isSettingBudget, setIsSettingBudget] = useState(false);
 
-  // --- 1. SUPABASE ENGINE (PENGGANTI GOOGLE SHEETS) ---
+  // --- 1. SUPABASE ENGINE ---
   const processIncomingData = (rawList: any[]) => {
     if (!Array.isArray(rawList)) return [];
     return rawList.map((item: any) => {
       const d = new Date(item.date);
       return {
         ...item,
-        desc: item.description || "Transaksi", // Nama kolom di Supabase
+        desc: item.description || "Transaksi",
         dateObj: d,
         dateKey: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
         dateStr: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
@@ -72,7 +72,6 @@ export default function App() {
     }).sort((a: any, b: any) => b.dateObj - a.dateObj);
   };
 
-  // FUNGSI TARIK DATA SUPER CEPAT
   const fetchData = async (idFromUrl: string) => {
     setLoading(true);
     try {
@@ -81,26 +80,26 @@ export default function App() {
         .select('*')
         .eq('user_id', String(idFromUrl))
         .order('date', { ascending: false });
-
+        
       if (error) throw error;
-      if (data) {
-        setTransactions(processIncomingData(data));
-        setError(null);
+      if (data) { 
+        setTransactions(processIncomingData(data)); 
+        setError(null); 
       }
-    } catch (err: any) {
-      console.error(err);
-      setError("Gagal menyinkronkan data dari Supabase Server.");
-    } finally {
-      setLoading(false);
+    } catch (err: any) { 
+      setError("Gagal sinkronisasi Supabase."); 
+    } finally { 
+      setLoading(false); 
     }
   };
 
-  // FUNGSI HAPUS DATA LANGSUNG KE SUPABASE
   const handleDelete = async () => {
-    if (isDemo) {
-      setTransactions(prev => prev.filter(t => t.id !== deleteId));
-      setDeleteId(null); return;
+    if (isDemo) { 
+      setTransactions(prev => prev.filter(t => t.id !== deleteId)); 
+      setDeleteId(null); 
+      return; 
     }
+    
     if (!deleteId || !userId) return;
     setIsDeleting(true);
     try {
@@ -110,20 +109,21 @@ export default function App() {
         .eq('id', deleteId)
         .eq('user_id', String(userId));
         
-      if (!error) {
-        setDeleteId(null); 
-        // Data akan refresh otomatis berkat Realtime Listener di bawah
-      } else {
-        alert("Gagal menghapus data.");
-      }
-    } catch (err) { console.error(err); } finally { setIsDeleting(false); }
+      if (!error) setDeleteId(null);
+    } catch (err) { 
+      console.error(err); 
+    } finally { 
+      setIsDeleting(false); 
+    }
   };
 
-  // 🔥 INISIALISASI & SENSOR REAL-TIME
   useEffect(() => {
     const idFromUrl = new URLSearchParams(window.location.search).get('userid');
-    if (!idFromUrl) {
-      setIsDemo(true); setTransactions(processIncomingData(DUMMY_DATA)); setLoading(false); return;
+    if (!idFromUrl) { 
+      setIsDemo(true); 
+      setTransactions(processIncomingData(DUMMY_DATA)); 
+      setLoading(false); 
+      return; 
     }
     
     setUserId(idFromUrl); 
@@ -134,28 +134,21 @@ export default function App() {
       if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
     } catch (e) {}
 
-    // SENSOR OTOMATIS: Jika ada chat masuk di Telegram, web otomatis terupdate!
     const channel = supabase
       .channel('schema-db-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${idFromUrl}` },
-        (payload) => {
-          fetchData(idFromUrl); // Panggil data baru tanpa harus direfresh user
-        }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${idFromUrl}` }, () => { 
+        fetchData(idFromUrl); 
+      })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+      
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
-  useEffect(() => {
-    try { localStorage.setItem('budgetin_last_tab', activeTab); } catch (e) {}
+  useEffect(() => { 
+    try { localStorage.setItem('budgetin_last_tab', activeTab); } catch (e) {} 
   }, [activeTab]);
 
-  // --- 2. LOGIKA ANALITIK & VISUAL ---
+  // --- 2. LOGIKA ANALITIK & BARAKAH ---
   const formatRp = (num: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
   const axisFormatter = (num: number) => new Intl.NumberFormat('id-ID', { notation: 'compact', compactDisplay: 'short' }).format(num);
 
@@ -168,13 +161,26 @@ export default function App() {
   const stats = useMemo(() => {
     const income = transactions.filter(t => t.type?.toUpperCase() === 'MASUK').reduce((a, b) => a + Number(b.amount), 0);
     const expense = transactions.filter(t => t.type?.toUpperCase() === 'KELUAR').reduce((a, b) => a + Number(b.amount), 0);
-    return { balance: income - expense, income, expense };
+    
+    // 🔥 BARAKAH SCORE LOGIC (Target 2.5%)
+    const charity = transactions.filter(t => t.category?.toUpperCase() === 'SEDEKAH/ZAKAT').reduce((a, b) => a + Number(b.amount), 0);
+    const targetRatio = 0.025; // 2.5%
+    const currentRatio = expense > 0 ? charity / expense : 0;
+    let score = 40; // Base score (Muhasabah)
+
+    if (currentRatio >= targetRatio) {
+      score = 100;
+    } else if (currentRatio > 0) {
+      score = 40 + (currentRatio / targetRatio) * 60;
+    }
+
+    return { balance: income - expense, income, expense, charity, barakahScore: Math.round(score) };
   }, [transactions]);
 
   const filteredByMonth = useMemo(() => 
     transactions.filter(t => t.month === viewDate.getMonth() && t.year === viewDate.getFullYear())
   , [transactions, viewDate]);
-
+  
   const totalKeluarBulanTerpilih = useMemo(() => 
     filteredByMonth.filter(t => t.type?.toUpperCase() === 'KELUAR').reduce((a, b) => a + Number(b.amount), 0)
   , [filteredByMonth]);
@@ -193,8 +199,7 @@ export default function App() {
   const categoryData = useMemo(() => {
     const cats: any = {};
     filteredByMonth.filter(t => t.type?.toUpperCase() === 'KELUAR').forEach(t => {
-      const catName = t.category || "Lainnya";
-      cats[catName] = (cats[catName] || 0) + Number(t.amount);
+      cats[t.category || "Lainnya"] = (cats[t.category || "Lainnya"] || 0) + Number(t.amount);
     });
     return Object.keys(cats).map(name => ({ name, amount: cats[name] })).sort((a,b) => b.amount - a.amount);
   }, [filteredByMonth]);
@@ -222,7 +227,7 @@ export default function App() {
   const tremorColors = ["emerald-800", "emerald-600", "rose-500", "amber-500", "slate-800", "indigo-500", "cyan-600", "purple-500"];
   const hexColors = ["#064E3B", "#10B981", "#F43F5E", "#F59E0B", "#1E293B", "#6366F1", "#0891B2", "#A855F7"];
 
-  // --- REUSABLE PIE CHART ---
+  // --- 3. UI COMPONENTS ---
   const AllocationCard = () => (
     <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white flex flex-col hover:shadow-md transition-all w-full">
       <Flex className="items-center mb-8">
@@ -238,7 +243,7 @@ export default function App() {
               <Flex key={c.name} className="border-b border-slate-50 pb-3 last:border-0 last:pb-0">
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: hexColors[i % hexColors.length] }}></div>
-                  <Text className="text-xs font-bold text-slate-600 uppercase tracking-widest truncate max-w-[120px] lg:max-w-[180px]">{c.name}</Text>
+                  <Text className="text-xs font-bold text-slate-600 uppercase tracking-widest truncate max-w-[150px]">{c.name}</Text>
                 </div>
                 <Text className="font-black text-slate-900 text-sm tracking-tighter">{formatRp(c.amount)}</Text>
               </Flex>
@@ -251,7 +256,6 @@ export default function App() {
     </Card>
   );
 
-  // --- 3. RENDERER ---
   if (loading) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center p-10">
       <Loader2 className="animate-spin text-emerald-500 w-12 h-12 mb-6" />
@@ -270,7 +274,7 @@ export default function App() {
   );
 
   return (
-    <div className="flex h-screen bg-[#FCFCFC] font-sans text-slate-900 overflow-hidden selection:bg-emerald-100">
+    <div className="flex h-screen bg-[#FCFCFC] font-sans text-slate-900 overflow-hidden">
       
       {/* BACKDROP MOBILE */}
       {isMobileSidebarOpen && (
@@ -322,7 +326,7 @@ export default function App() {
         <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl px-5 lg:px-8 py-3 flex justify-between items-center border-b border-slate-100/60 shrink-0">
           <div className="flex items-center gap-4">
              <button onClick={() => setIsMobileSidebarOpen(true)} className="lg:hidden p-2 bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-emerald-600"><Menu size={20}/></button>
-             <Badge color="emerald" variant="solid" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full animate-pulse shadow-md shadow-emerald-200">Live Sync: Supabase</Badge>
+             <Badge color="emerald" variant="solid" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full animate-pulse shadow-md shadow-emerald-200">Live Sync Active</Badge>
           </div>
           <div className="flex items-center gap-3">
             {isDemo && <Badge color="amber" icon={Sparkles} className="font-bold px-2.5 py-0.5 rounded-full text-[8px]">Mode Demo</Badge>}
@@ -337,6 +341,7 @@ export default function App() {
             {activeTab === 'overview' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                 
+                {/* HERO SALDO */}
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 lg:p-8 rounded-[2.5rem] shadow-lg border-t border-white ring-1 ring-slate-100/40">
                   <div>
                     <Text className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[9px] mb-2 flex items-center gap-2"><div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div> Total saldo aktif</Text>
@@ -351,24 +356,35 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* KPI CARDS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <Card className="rounded-[2rem] border-none shadow-sm p-6 lg:p-8 bg-white ring-1 ring-slate-100">
                     <Flex alignItems="center">
-                      <div><Text className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-3">Pemasukan</Text><Metric className="text-emerald-600 font-black text-3xl tracking-tighter">{formatRp(stats.income)}</Metric></div>
-                      <div className="p-4 bg-emerald-600 text-white rounded-2xl shadow-lg transform hover:rotate-6 transition-transform"><ArrowUpRight size={24} strokeWidth={3} /></div>
+                      <div>
+                        <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-3">Pemasukan</Text>
+                        <Metric className="text-emerald-600 font-black text-3xl tracking-tighter">{formatRp(stats.income)}</Metric>
+                      </div>
+                      <div className="p-4 bg-emerald-600 text-white rounded-2xl shadow-lg transform hover:rotate-6 transition-transform">
+                        <ArrowUpRight size={24} strokeWidth={3} />
+                      </div>
                     </Flex>
                   </Card>
                   <Card className="rounded-[2rem] border-none shadow-sm p-6 lg:p-8 bg-white ring-1 ring-slate-100">
                     <Flex alignItems="center">
-                      <div><Text className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-3">Pengeluaran</Text><Metric className="text-rose-600 font-black text-3xl tracking-tighter">{formatRp(stats.expense)}</Metric></div>
-                      <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-lg transform hover:-rotate-6 transition-transform"><ArrowDownRight size={24} strokeWidth={3} /></div>
+                      <div>
+                        <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-3">Pengeluaran</Text>
+                        <Metric className="text-rose-600 font-black text-3xl tracking-tighter">{formatRp(stats.expense)}</Metric>
+                      </div>
+                      <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-lg transform hover:-rotate-6 transition-transform">
+                        <ArrowDownRight size={24} strokeWidth={3} />
+                      </div>
                     </Flex>
                   </Card>
                 </div>
 
                 <div className="flex flex-col xl:flex-row gap-6">
                   
-                  {/* LEFT COLUMN */}
+                  {/* LEFT COLUMN: VISUAL CHARTS */}
                   <div className="flex-1 min-w-0 order-1 space-y-6 flex flex-col">
                     
                     {/* ALOKASI DANA PIE CHART */}
@@ -408,9 +424,40 @@ export default function App() {
 
                   </div>
 
-                  {/* RIGHT COLUMN */}
+                  {/* RIGHT COLUMN: WIDGETS & AI */}
                   <aside className="w-full xl:w-[380px] shrink-0 order-2 space-y-6 flex flex-col">
                     
+                    {/* 🔥 BARAKAH SCORE CARD */}
+                    <Card className="rounded-[2.5rem] border-none shadow-xl p-8 bg-white ring-1 ring-slate-100 relative overflow-hidden group hover:shadow-2xl transition-all">
+                      <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000">
+                        <HeartHandshake size={140} />
+                      </div>
+                      <Title className="text-[10px] font-bold text-slate-400 tracking-[0.3em] uppercase mb-8 border-l-4 border-emerald-600 pl-3 leading-none">Barakah Score</Title>
+                      
+                      <div className="flex flex-col items-center text-center">
+                        <div className="relative mb-6 flex items-center justify-center">
+                          <svg className="w-32 h-32 transform -rotate-90">
+                            <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="10" fill="transparent" className="text-slate-50" />
+                            <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="10" fill="transparent" 
+                                    strokeDasharray={364.4} strokeDashoffset={364.4 - (stats.barakahScore / 100) * 364.4}
+                                    className={`transition-all duration-1000 ease-out ${stats.barakahScore > 75 ? 'text-emerald-500' : stats.barakahScore > 45 ? 'text-amber-500' : 'text-rose-500'}`} />
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-3xl font-black text-slate-900 leading-none">{stats.barakahScore}</span>
+                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Point</span>
+                          </div>
+                        </div>
+                        
+                        <Badge color={stats.barakahScore > 75 ? "emerald" : stats.barakahScore > 45 ? "amber" : "rose"} variant="solid" className="font-black rounded-lg text-[9px] uppercase px-4 py-1 mb-4 shadow-sm">
+                          {stats.barakahScore > 75 ? "Maa Syaa Allah" : stats.barakahScore > 45 ? "Waspada Israf" : "Perlu Muhasabah"}
+                        </Badge>
+                        
+                        <Text className="text-[11px] font-medium text-slate-500 italic px-4 leading-relaxed">
+                          {stats.barakahScore > 75 ? `"Arus kasmu sangat berkah! Porsi sedekah mencapai target 2,5%."` : stats.barakahScore > 45 ? `"Ayo tingkatkan porsi berbagi agar hartamu makin tenang."` : `"Muhasabah diri, jangan lupakan hak sesama di setiap rupiah jajanmu."`}
+                        </Text>
+                      </div>
+                    </Card>
+
                     {/* TARGET ANGGARAN */}
                     <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-8 bg-white overflow-hidden relative hover:shadow-md transition-all">
                       <Flex className="mb-8 items-center justify-between">
@@ -446,26 +493,22 @@ export default function App() {
                     </Card>
 
                     {/* AI INSIGHTS */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-6">
+                    <div className="grid grid-cols-1 gap-6">
                       <Card className="rounded-3xl border-none shadow-sm p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group hover:shadow-md transition-all">
                           <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><Zap size={140} /></div>
                           <Title className="font-bold text-slate-900 uppercase text-[10px] tracking-widest flex items-center gap-2 mb-6">
                             <TrendingUp size={18} strokeWidth={2.5} className="text-emerald-600"/> Efisiensi
                           </Title>
                           <div className="space-y-4">
-                            <Flex><Text className="font-bold text-emerald-800 text-[10px] uppercase">Potensi hemat</Text><Text className="font-black text-emerald-700 text-3xl">24%</Text></Flex>
+                            <Flex>
+                              <Text className="font-bold text-emerald-800 text-[10px] uppercase">Potensi hemat</Text>
+                              <Text className="font-black text-emerald-700 text-3xl">24%</Text>
+                            </Flex>
                             <ProgressBar value={24} color="emerald" className="h-3 rounded-full shadow-inner" />
                           </div>
                           <Text className="mt-8 text-[11px] font-medium text-slate-600 italic border-l-4 border-emerald-500 pl-4 py-1 leading-relaxed">
                               {leakageInfo.count > 1 ? `"Detektor AI mendeteksi pengeluaran berulang pada kategori ${leakageInfo?.name?.toLowerCase() || ''}."` : `"Arus kas Anda bulan ini sangat efisien. Pertahankan!"`}
                           </Text>
-                      </Card>
-
-                      <Card className="rounded-3xl border-none shadow-sm p-7 bg-slate-900 text-white overflow-hidden relative border-t border-white/5 hover:shadow-md transition-all">
-                          <div className="absolute -bottom-10 -right-10 opacity-10"><Activity size={180} /></div>
-                          <Title className="text-emerald-400 font-bold uppercase text-[10px] tracking-[0.3em] mb-8 leading-none">Batas harian aman</Title>
-                          <Metric className="text-white font-black text-4xl tracking-tighter drop-shadow-md">{formatRp(stats.balance > 0 ? stats.balance / 30 : 0).replace('Rp', '').trim()}</Metric>
-                          <Text className="text-emerald-100 font-medium text-[10px] mt-6 opacity-80 leading-relaxed">Estimasi pengeluaran harian agar saldo aman sampai akhir bulan.</Text>
                       </Card>
                     </div>
 
@@ -475,7 +518,7 @@ export default function App() {
               </div>
             )}
 
-            {/* TAB: MUTASI (TANPA PIE CHART) */}
+            {/* TAB: MUTASI */}
             {activeTab === 'ledger' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto space-y-6">
                   <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-slate-100 overflow-hidden bg-white p-0">
@@ -519,7 +562,7 @@ export default function App() {
               </div>
             )}
 
-            {/* TAB: ZAKAT (TANPA PIE CHART) */}
+            {/* TAB: ZAKAT */}
             {activeTab === 'zakat' && (
               <div className="animate-in slide-in-from-bottom-6 duration-700 max-w-4xl mx-auto space-y-6">
                 <Card className="rounded-[3rem] p-10 lg:p-16 bg-gradient-to-br from-emerald-600 to-emerald-900 text-white text-center shadow-[0_40px_80px_rgba(5,150,105,0.2)] relative overflow-hidden group border border-emerald-500/30">
