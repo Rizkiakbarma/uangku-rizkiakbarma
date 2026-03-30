@@ -6,7 +6,8 @@ import {
   Loader2, Lock, CheckCircle2, LayoutDashboard, 
   History, PieChart as PieChartIcon, Search, 
   Filter, Calendar, RefreshCcw, Trash2, AlertTriangle, Target,
-  ArrowUpRight, ArrowDownRight, Zap, Info, BarChart3, LineChart
+  ArrowUpRight, ArrowDownRight, Zap, Info, BarChart3, LineChart,
+  ChevronLeft, ChevronRight, Menu, LogOut, Settings, Sparkles
 } from 'lucide-react';
 
 // --- IMPORT TREMOR COMPONENTS ---
@@ -16,8 +17,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V20.0 - STABLE & RESPONSIVE)
- * FIX: White Screen Crash, Safe LocalStorage, Mobile Flex Order, Reusable UI
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V21.0 - FIX WHITE SCREEN & DESKTOP LAYOUT)
+ * FIX: Missing Imports, Typo, Balanced Desktop Grid, Reusable Pie Chart everywhere
  */
 
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyslKsTua7BE8pwmFh1xfRZn7QhfQMSKbGYvY3nAxx6qu41iRXJLBK-z8AsKVSd2_g1ng/exec"; 
@@ -193,74 +194,48 @@ export default function App() {
     setIsSettingBudget(false);
   };
 
-  const hexColors = ['#e11d48', '#fb7185', '#f43f5e', '#be123c', '#9f1239', '#064E3B', '#10B981', '#F59E0B', '#6366F1'];
-  const totalCategoryAmount = categoryData.reduce((sum, cat) => sum + cat.amount, 0);
+  const tremorColors = ["emerald-800", "emerald-600", "rose-500", "amber-500", "slate-800", "indigo-500", "cyan-600", "purple-500"];
+  const hexColors = ["#064E3B", "#10B981", "#F43F5E", "#F59E0B", "#1E293B", "#6366F1", "#0891B2", "#A855F7"];
 
-  // --- REUSABLE PIE CHART FUNCTION (Aman & Anti-Crash) ---
-  const renderAllocationCard = (isSidebar = false) => {
-    // Styling dinamis tergantung di mana dia diletakkan (Sidebar Dashboard vs Tab Utama)
-    const layoutClass = isSidebar 
-      ? "flex flex-col items-center gap-6 justify-center w-full" 
-      : "flex flex-col md:flex-row items-center gap-8 justify-center w-full";
-      
-    const chartContainerClass = isSidebar 
-      ? "w-full flex justify-center" 
-      : "w-full md:w-1/2 flex justify-center";
-      
-    const legendContainerClass = isSidebar 
-      ? "w-full space-y-3 overflow-y-auto max-h-52 pr-2 custom-scrollbar" 
-      : "w-full md:w-1/2 space-y-3 overflow-y-auto max-h-52 pr-2 custom-scrollbar";
-
-    // Mencegah error pembagian dengan 0
-    const safeTotal = totalCategoryAmount > 0 ? totalCategoryAmount : 1;
-
+  // --- REUSABLE PIE CHART COMPONENT ---
+  const renderAllocationCard = () => {
     return (
       <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white flex flex-col hover:shadow-md transition-all w-full">
-        <div className="flex items-center gap-2 mb-8">
-          <PieChartIcon className="w-6 h-6 text-emerald-600" />
-          <h3 className="text-xl font-black text-slate-800 tracking-tight">Klasifikasi Pengeluaran</h3>
-        </div>
+        <Flex className="items-center mb-8">
+          <Title className="font-bold text-[10px] text-slate-400 uppercase tracking-[0.3em] border-l-4 border-emerald-600 pl-3 leading-none">Alokasi dana</Title>
+        </Flex>
         
-        <div className={layoutClass}>
-          {categoryData.length > 0 ? (
-            <>
-              {/* Chart Area */}
-              <div className={chartContainerClass}>
-                <div className="relative w-48 h-48 sm:w-52 sm:h-52 transform hover:scale-105 transition-transform duration-500">
-                  <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90 drop-shadow-md">
-                    {categoryData.map((cat, i) => {
-                      const dashArray = (cat.amount / safeTotal) * 100;
-                      const offset = categoryData.slice(0, i).reduce((sum, c) => sum + (c.amount / safeTotal) * 100, 0);
-                      const color = hexColors[i % hexColors.length];
-                      return (
-                        <circle key={cat.name} cx="18" cy="18" r="15.915" fill="transparent" stroke={color} strokeWidth="4.5" strokeDasharray={`${dashArray} ${100 - dashArray}`} strokeDashoffset={-offset} className="transition-all duration-1000" />
-                      );
-                    })}
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Total Outflow</p>
-                    <p className="text-sm font-black text-slate-800 tracking-tighter">Rp {Math.round(totalCategoryAmount/1000)}k</p>
+        {categoryData.length > 0 ? (
+          <>
+            <DonutChart
+              className="h-48 lg:h-52"
+              data={categoryData}
+              category="amount"
+              index="name"
+              valueFormatter={axisFormatter}
+              colors={tremorColors}
+              showAnimation={true}
+              showTooltip={true}
+            />
+            
+            {/* Custom Legend */}
+            <div className="mt-8 space-y-3 max-h-56 overflow-y-auto custom-scrollbar pr-2">
+              {categoryData.map((c, i) => (
+                <Flex key={c.name} className="border-b border-slate-50 pb-3 last:border-0 last:pb-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: hexColors[i % hexColors.length] }}></div>
+                    <Text className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate max-w-[120px] lg:max-w-[150px]">{c.name}</Text>
                   </div>
-                </div>
-              </div>
-              
-              {/* Legend Area */}
-              <div className={legendContainerClass}>
-                {categoryData.map((cat, idx) => (
-                  <div key={idx} className="flex items-center justify-between group p-2 rounded-xl hover:bg-slate-50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3.5 h-3.5 rounded-full shadow-sm group-hover:scale-125 transition-transform" style={{ backgroundColor: hexColors[idx % hexColors.length] }}></div>
-                      <span className="text-xs font-bold text-slate-600 truncate max-w-[130px]">{cat.name}</span>
-                    </div>
-                    <span className="text-xs font-black text-slate-900">{formatRp(cat.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="w-full py-12 text-center text-slate-300 font-bold uppercase tracking-widest text-xs italic">Belum Ada Pengeluaran Bulan Ini</div>
-          )}
-        </div>
+                  <Text className="font-black text-slate-900 text-[11px] tracking-tighter">{formatRp(c.amount)}</Text>
+                </Flex>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="h-52 flex items-center justify-center">
+            <Text className="text-center text-xs text-slate-400 font-medium italic">Belum ada pengeluaran bulan ini.</Text>
+          </div>
+        )}
       </Card>
     );
   };
@@ -383,10 +358,10 @@ export default function App() {
                   </Card>
                 </div>
 
-                {/* 🔥 BALANCED GRID LAYOUT */}
+                {/* 🔥 BALANCED GRID LAYOUT: KIRI (Charts) & KANAN (Insights) */}
                 <div className="flex flex-col xl:flex-row gap-6">
                   
-                  {/* KOLOM KIRI (TREN & AI) -> Tampil ke-2 di Mobile, ke-1 di Laptop */}
+                  {/* KOLOM KIRI (LEBAR) -> Tampil ke-2 di Mobile, ke-1 di Laptop */}
                   <div className="flex-1 min-w-0 order-2 xl:order-1 space-y-6 flex flex-col">
                     
                     {/* TREN HARIAN */}
@@ -437,11 +412,11 @@ export default function App() {
 
                   </div>
 
-                  {/* KOLOM KANAN (PIE CHART & TARGET) -> Tampil ke-1 di Mobile, ke-2 di Laptop */}
-                  <aside className="w-full xl:w-96 shrink-0 order-1 xl:order-2 space-y-6 flex flex-col">
+                  {/* KOLOM KANAN (SEMPIT) -> Tampil ke-1 di Mobile, ke-2 di Laptop */}
+                  <aside className="w-full xl:w-[380px] shrink-0 order-1 xl:order-2 space-y-6 flex flex-col">
                     
                     {/* ALOKASI DANA (PIE CHART) */}
-                    {renderAllocationCard(true)}
+                    {renderAllocationCard()}
 
                     {/* TARGET ANGGARAN */}
                     <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-8 bg-white overflow-hidden relative hover:shadow-md transition-all">
@@ -487,7 +462,7 @@ export default function App() {
                 MUTASI TAB 
                ======================================================== */}
             {activeTab === 'ledger' && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto space-y-8">
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto space-y-6">
                   <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-slate-100 overflow-hidden bg-white p-0">
                     <div className="p-6 lg:p-8 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-6 bg-slate-50/50">
                       <Title className="font-black text-slate-900 text-2xl tracking-tighter">Riwayat Transaksi</Title>
@@ -496,7 +471,7 @@ export default function App() {
                           <input type="text" placeholder="Cari keterangan / kategori..." className="w-full pl-12 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none shadow-sm" onChange={(e) => setSearchQuery(e.target.value)} />
                       </div>
                     </div>
-                    <div className="overflow-x-auto max-h-[650px] custom-scrollbar">
+                    <div className="overflow-x-auto max-h-[500px] custom-scrollbar">
                       <table className="w-full text-left border-collapse">
                           <thead className="bg-slate-900 sticky top-0 z-10">
                             <tr>
@@ -538,8 +513,10 @@ export default function App() {
                     </div>
                   </Card>
 
-                  {/* 🔥 PIE CHART DI BAWAH MUTASI (LEBAR & RESPONSIVE) */}
-                  {renderAllocationCard(false)}
+                  {/* 🔥 PIE CHART DI BAWAH MUTASI (TENGAH & RESPONSIVE) */}
+                  <div className="max-w-md mx-auto xl:max-w-none">
+                    {renderAllocationCard()}
+                  </div>
               </div>
             )}
 
@@ -547,7 +524,7 @@ export default function App() {
                 ZAKAT TAB 
                ======================================================== */}
             {activeTab === 'zakat' && (
-              <div className="animate-in slide-in-from-bottom-6 duration-700 max-w-4xl mx-auto space-y-8">
+              <div className="animate-in slide-in-from-bottom-6 duration-700 max-w-4xl mx-auto space-y-6">
                 <Card className="rounded-[3rem] p-10 lg:p-16 bg-gradient-to-br from-emerald-600 to-emerald-900 text-white text-center shadow-[0_40px_80px_rgba(5,150,105,0.2)] relative overflow-hidden group border border-emerald-500/30">
                   <div className="absolute -top-40 -right-40 w-[30rem] h-[30rem] bg-white/10 rounded-full blur-[100px] group-hover:scale-110 transition-transform duration-1000"></div>
                   <div className="relative z-10">
@@ -579,7 +556,7 @@ export default function App() {
                   </div>
                 </Card>
 
-                <Grid numItemsMd={2} className="gap-8">
+                <Grid numItemsMd={2} className="gap-6">
                   <Card className="rounded-[2.5rem] p-8 lg:p-10 bg-white ring-1 ring-slate-100 shadow-xl hover:translate-y-[-5px] transition-transform">
                       <HeartHandshake className="text-rose-500 mb-6" size={32} strokeWidth={3}/>
                       <Title className="font-black text-slate-800 uppercase text-[11px] tracking-[0.2em] mb-3">Sedekah Ideal (1%)</Title>
@@ -597,9 +574,9 @@ export default function App() {
                   </Card>
                 </Grid>
 
-                {/* 🔥 PIE CHART DI BAWAH ZAKAT (LEBAR & RESPONSIVE) */}
-                <div className="pt-4">
-                  {renderAllocationCard(false)}
+                {/* 🔥 PIE CHART DI BAWAH ZAKAT */}
+                <div className="pt-4 max-w-md mx-auto xl:max-w-none">
+                  {renderAllocationCard()}
                 </div>
               </div>
             )}
