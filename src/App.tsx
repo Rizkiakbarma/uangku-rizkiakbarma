@@ -302,10 +302,37 @@ export default function App() {
                 {/* 🔥 GRID OPTIMIZED: DESKTOP & MOBILE BALANCED */}
                 <div className="flex flex-col xl:flex-row gap-6">
                   
-                  {/* LEFT COLUMN: VISUAL CHARTS (Order-2 on Mobile, Order-1 on Laptop) */}
-                  <div className="flex-1 min-w-0 order-2 xl:order-1 space-y-6 flex flex-col">
+                  {/* LEFT COLUMN: VISUAL CHARTS (Order-1 on Mobile & Laptop) */}
+                  <div className="flex-1 min-w-0 order-1 space-y-6 flex flex-col">
                     
-                    {/* TREN HARIAN */}
+                    {/* ALOKASI DANA (PIE CHART - DIPINDAH KE KIRI ATAS) */}
+                    <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white flex flex-col hover:shadow-md transition-all w-full">
+                      <Flex className="items-center mb-8">
+                        <Title className="font-bold text-[10px] text-slate-400 uppercase tracking-[0.3em] border-l-4 border-emerald-600 pl-3 leading-none">Alokasi dana</Title>
+                      </Flex>
+                      {categoryData.length > 0 ? (
+                        <div className="flex flex-col md:flex-row items-center gap-8 w-full">
+                          <div className="w-full md:w-1/2 flex justify-center">
+                            <DonutChart className="h-48 lg:h-56 w-full" data={categoryData} category="amount" index="name" valueFormatter={axisFormatter} colors={tremorColors} showAnimation={true} />
+                          </div>
+                          <div className="w-full md:w-1/2 space-y-4 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                            {categoryData.map((c, i) => (
+                              <Flex key={c.name} className="border-b border-slate-50 pb-3 last:border-0 last:pb-0">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: hexColors[i % hexColors.length] }}></div>
+                                  <Text className="text-xs font-bold text-slate-600 uppercase tracking-widest truncate max-w-[120px] lg:max-w-[180px]">{c.name}</Text>
+                                </div>
+                                <Text className="font-black text-slate-900 text-sm tracking-tighter">{formatRp(c.amount)}</Text>
+                              </Flex>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="h-52 flex items-center justify-center italic text-slate-300 text-xs">Belum ada pengeluaran bulan ini.</div>
+                      )}
+                    </Card>
+
+                    {/* TREN HARIAN (DI BAWAH PIE CHART) */}
                     <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white relative hover:shadow-md transition-all">
                       <Flex className="mb-6 items-start justify-between">
                           <div className="flex items-center gap-2">
@@ -327,60 +354,11 @@ export default function App() {
                       <Text className="text-[10px] text-slate-400 font-medium mt-6 text-center italic tracking-wide">Ketuk atau hover area grafik untuk melihat detail nominal harian.</Text>
                     </Card>
 
-                    {/* AI INSIGHTS AREA */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <Card className="rounded-3xl border-none shadow-sm p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group hover:shadow-md transition-all">
-                          <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><Zap size={140} /></div>
-                          <Title className="font-bold text-slate-900 uppercase text-[10px] tracking-widest flex items-center gap-2 mb-6">
-                            <TrendingUp size={18} strokeWidth={2.5} className="text-emerald-600"/> Efisiensi
-                          </Title>
-                          <div className="space-y-4">
-                            <Flex><Text className="font-bold text-emerald-800 text-[10px] uppercase">Potensi hemat</Text><Text className="font-black text-emerald-700 text-3xl">24%</Text></Flex>
-                            <ProgressBar value={24} color="emerald" className="h-3 rounded-full shadow-inner" />
-                          </div>
-                          <Text className="mt-8 text-[11px] font-medium text-slate-600 italic border-l-4 border-emerald-500 pl-4 py-1 leading-relaxed">
-                              {leakageInfo.count > 1 ? `"Detektor AI mendeteksi pengeluaran berulang pada kategori ${leakageInfo?.name?.toLowerCase() || ''}."` : `"Arus kas Anda bulan ini sangat efisien. Pertahankan!"`}
-                          </Text>
-                      </Card>
-
-                      <Card className="rounded-3xl border-none shadow-sm p-7 bg-slate-900 text-white overflow-hidden relative border-t border-white/5 hover:shadow-md transition-all">
-                          <div className="absolute -bottom-10 -right-10 opacity-10"><Activity size={180} /></div>
-                          <Title className="text-emerald-400 font-bold uppercase text-[10px] tracking-[0.3em] mb-8 leading-none">Batas harian aman</Title>
-                          <Metric className="text-white font-black text-4xl tracking-tighter drop-shadow-md">{formatRp(stats.balance > 0 ? stats.balance / 30 : 0).replace('Rp', '').trim()}</Metric>
-                          <Text className="text-emerald-100 font-medium text-[10px] mt-6 opacity-80 leading-relaxed">Estimasi pengeluaran harian agar saldo aman sampai akhir bulan.</Text>
-                      </Card>
-                    </div>
-
                   </div>
 
-                  {/* KOLOM KANAN (SEMPIT) -> Tampil ke-1 di Mobile, ke-2 di Laptop */}
-                  <aside className="w-full xl:w-[380px] shrink-0 order-1 xl:order-2 space-y-6 flex flex-col">
+                  {/* RIGHT COLUMN: WIDGETS & AI (Order-2 on Mobile & Laptop) */}
+                  <aside className="w-full xl:w-[380px] shrink-0 order-2 space-y-6 flex flex-col">
                     
-                    {/* ALOKASI DANA (PIE CHART - INLINED NATIVE) */}
-                    <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-6 lg:p-8 bg-white flex flex-col hover:shadow-md transition-all w-full">
-                      <Flex className="items-center mb-8">
-                        <Title className="font-bold text-[10px] text-slate-400 uppercase tracking-[0.3em] border-l-4 border-emerald-600 pl-3 leading-none">Alokasi dana</Title>
-                      </Flex>
-                      {categoryData.length > 0 ? (
-                        <>
-                          <DonutChart className="h-48 lg:h-52" data={categoryData} category="amount" index="name" valueFormatter={axisFormatter} colors={tremorColors} showAnimation={true} />
-                          <div className="mt-8 space-y-3 max-h-56 overflow-y-auto custom-scrollbar pr-2">
-                            {categoryData.map((c, i) => (
-                              <Flex key={c.name} className="border-b border-slate-50 pb-3 last:border-0 last:pb-0">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: hexColors[i % hexColors.length] }}></div>
-                                  <Text className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate max-w-[120px] lg:max-w-[150px]">{c.name}</Text>
-                                </div>
-                                <Text className="font-black text-slate-900 text-[11px] tracking-tighter">{formatRp(c.amount)}</Text>
-                              </Flex>
-                            ))}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="h-52 flex items-center justify-center italic text-slate-300 text-xs">Belum ada pengeluaran bulan ini.</div>
-                      )}
-                    </Card>
-
                     {/* TARGET ANGGARAN */}
                     <Card className="rounded-[2.5rem] border-none shadow-sm ring-1 ring-slate-100 p-8 bg-white overflow-hidden relative hover:shadow-md transition-all">
                       <Flex className="mb-8 items-center justify-between">
@@ -414,6 +392,30 @@ export default function App() {
                         </div>
                       </div>
                     </Card>
+
+                    {/* AI INSIGHTS AREA (DIPINDAH KE KANAN) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-6">
+                      <Card className="rounded-3xl border-none shadow-sm p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group hover:shadow-md transition-all">
+                          <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><Zap size={140} /></div>
+                          <Title className="font-bold text-slate-900 uppercase text-[10px] tracking-widest flex items-center gap-2 mb-6">
+                            <TrendingUp size={18} strokeWidth={2.5} className="text-emerald-600"/> Efisiensi
+                          </Title>
+                          <div className="space-y-4">
+                            <Flex><Text className="font-bold text-emerald-800 text-[10px] uppercase">Potensi hemat</Text><Text className="font-black text-emerald-700 text-3xl">24%</Text></Flex>
+                            <ProgressBar value={24} color="emerald" className="h-3 rounded-full shadow-inner" />
+                          </div>
+                          <Text className="mt-8 text-[11px] font-medium text-slate-600 italic border-l-4 border-emerald-500 pl-4 py-1 leading-relaxed">
+                              {leakageInfo.count > 1 ? `"Detektor AI mendeteksi pengeluaran berulang pada kategori ${leakageInfo?.name?.toLowerCase() || ''}."` : `"Arus kas Anda bulan ini sangat efisien. Pertahankan!"`}
+                          </Text>
+                      </Card>
+
+                      <Card className="rounded-3xl border-none shadow-sm p-7 bg-slate-900 text-white overflow-hidden relative border-t border-white/5 hover:shadow-md transition-all">
+                          <div className="absolute -bottom-10 -right-10 opacity-10"><Activity size={180} /></div>
+                          <Title className="text-emerald-400 font-bold uppercase text-[10px] tracking-[0.3em] mb-8 leading-none">Batas harian aman</Title>
+                          <Metric className="text-white font-black text-4xl tracking-tighter drop-shadow-md">{formatRp(stats.balance > 0 ? stats.balance / 30 : 0).replace('Rp', '').trim()}</Metric>
+                          <Text className="text-emerald-100 font-medium text-[10px] mt-6 opacity-80 leading-relaxed">Estimasi pengeluaran harian agar saldo aman sampai akhir bulan.</Text>
+                      </Card>
+                    </div>
 
                   </aside>
                 </div>
