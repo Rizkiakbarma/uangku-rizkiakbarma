@@ -1,27 +1,27 @@
 // @ts-nocheck
 /* eslint-disable */
 import React, { useState, useEffect, useMemo } from 'react';
-import { createClient } from '@supabase/supabase-js'; 
-import { 
-  Activity, Loader2, Lock, CheckCircle2, LayoutDashboard, History, 
-  Search, RefreshCcw, Trash2, AlertTriangle, Target, Calculator, 
-  Coins, HeartHandshake, ArrowUpRight, ArrowDownRight, Zap, 
+import { createClient } from '@supabase/supabase-js';
+import {
+  Activity, Loader2, Lock, CheckCircle2, LayoutDashboard, History,
+  Search, RefreshCcw, Trash2, AlertTriangle, Target, Calculator,
+  Coins, HeartHandshake, ArrowUpRight, ArrowDownRight, Zap,
   ChevronRight, ChevronLeft, Calendar, Menu, Settings, LogOut,
   Sparkles, BarChart3, TrendingUp, LineChart as LineChartIcon
 } from 'lucide-react';
 
-import { 
-  Card, Metric, Text, Flex, ProgressBar, Grid, AreaChart, 
+import {
+  Card, Metric, Text, Flex, ProgressBar, Grid, AreaChart,
   DonutChart, Title, Badge, BarChart
 } from "@tremor/react";
 
 /**
  * BudgetIN PRO - ENTERPRISE ULTIMATE (V25.0 - UI PERFECTION)
- * Fix: Hide backend info badge, Match UI colors with reference, Fix Y-Axis cutoff, Make BarChart slimmer & show all dates.
+ * Fix: Hide backend info badge, Match UI colors with reference.
  */
 
-// 🔥 1. SETUP KONEKSI DUA SUMBER DATA (HYBRID SYNC)
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyslKsTua7BE8pwmFh1xfRZn7QhfQMSKbGYvY3nAxx6qu41iRXJLBK-z8AsKVSd2_g1ng/exec"; 
+// 🔥 1. SETUP KONEKSI DUA SUMBER DATA
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyslKsTua7BE8pwmFh1xfRZn7QhfQMSKbGYvY3nAxx6qu41iRXJLBK-z8AsKVSd2_g1ng/exec";
 const SUPABASE_URL = "https://tdjzksdxnvxoaethaxeo.supabase.co";
 const SUPABASE_KEY = "sb_publishable_CIPEHIf12ctSTq_liVgWiA_E3n734fh";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -34,7 +34,7 @@ const DUMMY_DATA = [
 export default function App() {
   const [activeTab, setActiveTab] = useState(localStorage.getItem('budgetin_last_tab') || 'overview');
   const [transactions, setTransactions] = useState([]);
-  const [goals, setGoals] = useState([]); 
+  const [goals, setGoals] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -47,7 +47,7 @@ export default function App() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteGoalData, setDeleteGoalData] = useState(null);
   const [isDeletingGoal, setIsDeletingGoal] = useState(false);
-  const [monthlyBudget, setMonthlyBudget] = useState(5000000); 
+  const [monthlyBudget, setMonthlyBudget] = useState(5000000);
   const [isSettingBudget, setIsSettingBudget] = useState(false);
 
   const processIncomingData = (rawList) => {
@@ -65,15 +65,18 @@ export default function App() {
     });
   };
 
+  // 🔥 2. HYBRID FETCHING (Sheets + Supabase)
   const fetchData = async (idFromUrl) => {
     setLoading(true);
     try {
+      // Fetch dari Supabase
       let supaData = [];
       try {
         const { data } = await supabase.from('transactions').select('*').eq('user_id', String(idFromUrl));
         if (data) supaData = processIncomingData(data).map(item => ({ ...item, source: 'supabase' }));
       } catch (e) { console.warn("Supabase fetch failed", e); }
 
+      // Fetch dari Google Sheets
       let sheetData = [];
       try {
         const res = await fetch(`${GAS_API_URL}?userid=${idFromUrl}`);
@@ -83,6 +86,7 @@ export default function App() {
         }
       } catch (e) { console.warn("Sheets fetch failed", e); }
 
+      // Gabungkan dan Filter Duplikat (Tanggal, Nominal, Keterangan sama = Duplikat)
       const combined = [...supaData, ...sheetData];
       const uniqueTransactions = combined.filter((item, index, self) =>
         index === self.findIndex((t) => (
@@ -114,22 +118,25 @@ export default function App() {
     if (isDemo) { setTransactions(prev => prev.filter(t => t.id !== deleteId)); setDeleteId(null); return; }
     if (!deleteId || !userId) return;
     setIsDeleting(true);
-    
+   
     try {
       const trxToDelete = transactions.find(t => t.id === deleteId);
-      
+     
       if (trxToDelete) {
+        // Hapus dari sumber yang sesuai
         if (trxToDelete.source === 'sheet') {
           await fetch(`${GAS_API_URL}?userid=${userId}&action=delete&row=${trxToDelete.id}`);
+          // Hapus juga bayangannya di Supabase jika ada (Mencegah bug sinkronisasi)
           await supabase.from('transactions').delete().eq('user_id', String(userId)).eq('amount', trxToDelete.amount).ilike('description', trxToDelete.desc);
         } else {
           await supabase.from('transactions').delete().eq('id', deleteId).eq('user_id', String(userId));
         }
 
+        // Auto-reverse saldo celengan
         if (trxToDelete.desc?.toLowerCase().startsWith('nabung goals:') || trxToDelete.desc?.toLowerCase().startsWith('nabung:')) {
           const goalName = trxToDelete.desc.replace(/Nabung Goals:|Nabung:/ig, '').trim();
           const goalToUpdate = goals.find(g => g.goal_name.toLowerCase() === goalName.toLowerCase());
-          
+         
           if (goalToUpdate) {
             const newAmount = Math.max(0, Number(goalToUpdate.current_amount) - Number(trxToDelete.amount));
             await supabase.from('goals').update({ current_amount: newAmount }).eq('id', goalToUpdate.id);
@@ -138,7 +145,7 @@ export default function App() {
       }
 
       setDeleteId(null);
-      fetchData(userId); 
+      fetchData(userId);
       fetchGoals(userId);
     } catch (err) { console.error(err); } finally { setIsDeleting(false); }
   };
@@ -165,7 +172,7 @@ export default function App() {
 
       setDeleteGoalData(null);
       fetchGoals(userId);
-      if (actionType === 'refund') fetchData(userId); 
+      if (actionType === 'refund') fetchData(userId);
     } catch (err) {
       console.error(err);
       alert("Gagal memproses penghapusan.");
@@ -181,7 +188,7 @@ export default function App() {
     }
     setUserId(idFromUrl);
     fetchData(idFromUrl);
-    fetchGoals(idFromUrl); 
+    fetchGoals(idFromUrl);
     const savedBudget = localStorage.getItem(`budgetin_budget_${idFromUrl}`);
     if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
   }, []);
@@ -207,17 +214,17 @@ export default function App() {
     const data = [];
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate(); 
-    
+    const daysInMonth = new Date(year, month + 1, 0).getDate(); // Mendapatkan total hari di bulan tersebut
+   
     // Menampilkan 1 bulan full agar tanggal tidak ada yang terlewat
     for (let i = 1; i <= daysInMonth; i++) {
       const d = new Date(year, month, i);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const amt = transactions.filter(t => t.type?.toUpperCase() === 'KELUAR' && t.dateKey === key).reduce((s, t) => s + Number(t.amount), 0);
-      
-      data.push({ 
-        date: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }), 
-        "Pengeluaran": amt 
+     
+      data.push({
+        date: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+        "Pengeluaran": amt
       });
     }
     return data;
@@ -247,7 +254,7 @@ export default function App() {
   const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
   const axisFormatter = (num) => new Intl.NumberFormat('id-ID', { notation: 'compact', compactDisplay: 'short' }).format(num);
 
-  const activeGoal = goals.find(g => g.is_active) || goals[0]; 
+  const activeGoal = goals.find(g => g.is_active) || goals[0];
 
   const handleSaveBudget = (val) => {
     let newVal = parseInt(val);
@@ -258,20 +265,19 @@ export default function App() {
   };
 
   // 🔥 WARNA SESUAI REFERENSI FOTO (VIBRANT & ELEGAN)
-  // Dark Green, Emerald, Rose/Pink, Amber/Orange, Navy
   const tremorColors = ["emerald-800", "emerald-500", "rose-500", "amber-500", "slate-800", "blue-500", "fuchsia-500", "cyan-500"];
   const hexColors = ["#065f46", "#10b981", "#f43f5e", "#f59e0b", "#1e293b", "#3b82f6", "#d946ef", "#06b6d4"];
 
   if (loading) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center p-10">
       <Loader2 className="animate-spin text-emerald-500 w-12 h-12 mb-6" />
-      <Text className="font-bold tracking-widest text-slate-300 uppercase text-[10px]">Memuat data...</Text>
+      <Text className="font-bold tracking-widest text-slate-300 uppercase text-[10px]">Sinkronisasi Multi-Database...</Text>
     </div>
   );
 
   const NavItem = ({ id, label, icon: Icon }) => (
-    <button 
-      onClick={() => { setActiveTab(id); setIsMobileSidebarOpen(false); }} 
+    <button
+      onClick={() => { setActiveTab(id); setIsMobileSidebarOpen(false); }}
       className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold transition-all group ${activeTab === id ? 'bg-emerald-600 text-white shadow-[0_8px_16px_rgba(16,185,129,0.15)]' : 'text-slate-500 hover:bg-slate-50'}`}
     >
       <div className="shrink-0"><Icon size={20} strokeWidth={2.5} /></div>
@@ -281,7 +287,7 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-[#FCFCFC] font-sans text-slate-900 overflow-hidden selection:bg-emerald-100">
-      
+     
       {isMobileSidebarOpen && (
         <div onClick={() => setIsMobileSidebarOpen(false)} className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-[90] lg:hidden animate-in fade-in" />
       )}
@@ -310,7 +316,7 @@ export default function App() {
       </aside>
 
       <main className="flex-1 h-screen overflow-y-auto relative custom-scrollbar flex flex-col">
-        
+       
         {/* 🔥 MODAL HAPUS TRANSAKSI UMUM */}
         {deleteId && (
             <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[200] flex items-center justify-center p-4">
@@ -336,7 +342,7 @@ export default function App() {
                 <Text className="text-center text-xs mb-8 text-slate-500 leading-relaxed px-4">
                   Saat ini ada dana <strong className="text-emerald-600">{formatRp(deleteGoalData.current_amount)}</strong> yang sudah terkumpul. Apa yang ingin kamu lakukan dengan dana ini?
                 </Text>
-                
+               
                 <div className="flex flex-col gap-4">
                   <button onClick={() => executeDeleteGoal('refund')} disabled={isDeletingGoal} className="w-full py-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-2xl font-bold text-xs uppercase transition-all flex flex-col items-center justify-center gap-1 border border-emerald-200/60 shadow-sm">
                     <span>↩️ Batal & Refund Saldo</span>
@@ -356,7 +362,6 @@ export default function App() {
         <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl px-5 lg:px-8 py-3 flex justify-between items-center border-b border-slate-100/60 shrink-0">
           <div className="flex items-center gap-4">
              <button onClick={() => setIsMobileSidebarOpen(true)} className="lg:hidden p-2 bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-emerald-600"><Menu size={20}/></button>
-             {/* 🔥 TULISAN UNGU DIGANTI JADI HIJAU PROFESSIONAL USER-FACING */}
              <Badge color="emerald" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-emerald-100 animate-pulse">Live Sync Active</Badge>
           </div>
           <div className="flex items-center gap-3">
@@ -367,13 +372,13 @@ export default function App() {
         </header>
 
         <div className="flex-1 p-5 lg:p-7 max-w-8xl mx-auto w-full">
-            
+           
             {/* ========================================================================= */}
-            {/* TAB: DASHBOARD (OVERVIEW) */}
+            {/* TAB: DASHBOARD (OVERVIEW) - BALANCED MASONRY LAYOUT */}
             {/* ========================================================================= */}
             {activeTab === 'overview' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
-                
+               
                 {/* 1. ROW ATAS: HERO SALDO */}
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 lg:p-8 rounded-[2.5rem] shadow-lg border-t border-white ring-1 ring-slate-100/40">
                   <div>
@@ -407,11 +412,11 @@ export default function App() {
 
                 {/* 3. ROW BAWAH: BALANCED COLUMNS */}
                 <div className="flex flex-col xl:flex-row gap-6">
-                  
-                  {/* --- KOLOM KIRI: MAIN CHARTS --- */}
+                 
+                  {/* --- KOLOM KIRI: MAIN CHARTS (Lebih Lebar) --- */}
                   <div className="flex-1 min-w-0 space-y-6">
-                    
-                    {/* TREN HARIAN (YAxis lebar, Scrollable 30 Hari, Batang Kecil) */}
+                   
+                    {/* TREN HARIAN (Pindah ke Kiri + Fitur Scroll + YAxis Lebar) */}
                     <Card className="rounded-[2.5rem] border-none shadow-xl p-6 lg:p-8 bg-white ring-1 ring-slate-100/30">
                       <Flex className="mb-2 items-start justify-between">
                           <div><Title className="font-bold text-slate-900 border-l-4 border-emerald-600 pl-3 text-[11px] tracking-widest leading-none uppercase">Tren harian</Title></div>
@@ -421,21 +426,20 @@ export default function App() {
                           </div>
                       </Flex>
                       <div className="w-full overflow-x-auto custom-scrollbar pb-4 mt-4">
-                          {/* 🔥 MIN WIDTH SANGAT BESAR AGAR BATANG KECIL DAN SEMUA TANGGAL MUNCUL */}
-                          <div className="h-56 min-w-[1200px] pr-4">
+                          <div className="h-56 min-w-[900px] pr-4">
                               {isBarChart ? (
-                                <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={70} showGridLines={false} />
+                                <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={65} showGridLines={false} />
                               ) : (
-                                <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={70} curveType="monotone" showGridLines={false} />
+                                <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={65} curveType="monotone" showGridLines={false} />
                               )}
                           </div>
                       </div>
                     </Card>
 
-                    {/* ALOKASI DANA */}
+                    {/* ALOKASI DANA (Pindah ke Kiri) */}
                     <Card className="rounded-[2.5rem] border-none shadow-lg ring-1 ring-slate-100 p-8 bg-white flex flex-col hover:shadow-xl transition-shadow">
                       <Title className="font-bold text-[10px] text-slate-400 uppercase tracking-[0.3em] mb-8 border-l-4 border-emerald-600 pl-3 leading-none">Alokasi dana</Title>
-                      
+                     
                       <div className="flex flex-col md:flex-row items-center gap-8">
                         <div className="w-full md:w-1/2">
                           <DonutChart className="h-52 w-full" data={categoryData} category="amount" index="name" valueFormatter={axisFormatter} colors={tremorColors} showAnimation={true} />
@@ -456,9 +460,9 @@ export default function App() {
 
                   </div>
 
-                  {/* --- KOLOM KANAN: WIDGETS --- */}
+                  {/* --- KOLOM KANAN: WIDGETS & AI (Lebih Sempit, Pas untuk Sidebar) --- */}
                   <aside className="w-full xl:w-96 shrink-0 space-y-6">
-                    
+                   
                     {/* FOKUS TARGET 🎯 */}
                     {activeGoal ? (
                       <Card className="rounded-[2.5rem] border-none shadow-xl p-8 bg-slate-900 text-white relative overflow-hidden group hover:shadow-2xl transition-all cursor-pointer" onClick={() => setActiveTab('goals')}>
@@ -546,7 +550,7 @@ export default function App() {
             )}
 
             {/* ========================================================================= */}
-            {/* 🔥 TAB: GOAL CENTER */}
+            {/* 🔥 TAB: GOAL CENTER (TARGET TABUNGAN & RIWAYAT KHUSUS) */}
             {/* ========================================================================= */}
             {activeTab === 'goals' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
@@ -562,8 +566,8 @@ export default function App() {
                 <Grid numItemsMd={2} className="gap-6">
                   {goals.map(g => (
                     <Card key={g.id} className="rounded-[2.5rem] border-none shadow-sm p-8 bg-white ring-1 ring-slate-100 relative overflow-hidden group hover:shadow-xl transition-all hover:-translate-y-1">
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setDeleteGoalData(g); }} 
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteGoalData(g); }}
                         className="absolute top-6 right-6 p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
                       >
                         <Trash2 size={18} strokeWidth={2.5}/>
@@ -579,7 +583,7 @@ export default function App() {
                         </Badge>
                       </Flex>
                       <ProgressBar value={(g.current_amount / g.target_amount) * 100} color={g.current_amount >= g.target_amount ? "emerald" : "amber"} className="h-3.5 rounded-full mb-6 shadow-inner" />
-                      
+                     
                       <div className="flex justify-between items-center p-5 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner">
                         <div>
                           <Text className="text-[9px] text-slate-400 uppercase font-bold mb-1">Celengan Terisi</Text>
