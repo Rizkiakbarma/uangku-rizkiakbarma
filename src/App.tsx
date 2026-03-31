@@ -16,11 +16,13 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V23.0 - BALANCED LAYOUT)
- * Fix: Menyeimbangkan tinggi kolom kiri dan kanan agar tidak kosong saat di-scroll.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V24.0 - HYBRID SYNC)
+ * Fix: Menarik data ganda dari Google Sheets & Supabase sekaligus, 
+ * lalu memfilter duplikat agar akun lama tetap memunculkan data.
  */
 
-// 🔥 SETUP KONEKSI SUPABASE
+// 🔥 1. SETUP KONEKSI DUA SUMBER DATA
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyslKsTua7BE8pwmFh1xfRZn7QhfQMSKbGYvY3nAxx6qu41iRXJLBK-z8AsKVSd2_g1ng/exec"; 
 const SUPABASE_URL = "https://tdjzksdxnvxoaethaxeo.supabase.co";
 const SUPABASE_KEY = "sb_publishable_CIPEHIf12ctSTq_liVgWiA_E3n734fh";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -61,17 +63,46 @@ export default function App() {
         month: d.getMonth(),
         year: d.getFullYear()
       };
-    }).sort((a, b) => b.dateObj - a.dateObj);
+    });
   };
 
+  // 🔥 2. HYBRID FETCHING (Sheets + Supabase)
   const fetchData = async (idFromUrl) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.from('transactions').select('*').eq('user_id', String(idFromUrl)).order('date', { ascending: false });
-      if (error) throw error;
-      if (data) setTransactions(processIncomingData(data));
+      // Fetch dari Supabase
+      let supaData = [];
+      try {
+        const { data } = await supabase.from('transactions').select('*').eq('user_id', String(idFromUrl));
+        if (data) supaData = processIncomingData(data).map(item => ({ ...item, source: 'supabase' }));
+      } catch (e) { console.warn("Supabase fetch failed", e); }
+
+      // Fetch dari Google Sheets
+      let sheetData = [];
+      try {
+        const res = await fetch(`${GAS_API_URL}?userid=${idFromUrl}`);
+        const json = await res.json();
+        if (json.status === 'success') {
+          sheetData = processIncomingData(json.data).map(item => ({ ...item, source: 'sheet' }));
+        }
+      } catch (e) { console.warn("Sheets fetch failed", e); }
+
+      // Gabungkan dan Filter Duplikat (Tanggal, Nominal, Keterangan sama = Duplikat)
+      const combined = [...supaData, ...sheetData];
+      const uniqueTransactions = combined.filter((item, index, self) =>
+        index === self.findIndex((t) => (
+          t.dateKey === item.dateKey &&
+          t.amount === item.amount &&
+          t.desc?.toLowerCase() === item.desc?.toLowerCase()
+        ))
+      );
+
+      uniqueTransactions.sort((a, b) => b.dateObj - a.dateObj || b.id - a.id);
+      setTransactions(uniqueTransactions);
+      setError(null);
     } catch (err) {
       console.error(err);
+      setError("Gagal sinkronisasi data.");
     } finally {
       setLoading(false);
     }
@@ -88,19 +119,29 @@ export default function App() {
     if (isDemo) { setTransactions(prev => prev.filter(t => t.id !== deleteId)); setDeleteId(null); return; }
     if (!deleteId || !userId) return;
     setIsDeleting(true);
+    
     try {
       const trxToDelete = transactions.find(t => t.id === deleteId);
-      const { error } = await supabase.from('transactions').delete().eq('id', deleteId).eq('user_id', String(userId));
-      if (error) throw error;
+      
+      if (trxToDelete) {
+        // Hapus dari sumber yang sesuai
+        if (trxToDelete.source === 'sheet') {
+          await fetch(`${GAS_API_URL}?userid=${userId}&action=delete&row=${trxToDelete.id}`);
+          // Hapus juga bayangannya di Supabase jika ada (Mencegah bug sinkronisasi)
+          await supabase.from('transactions').delete().eq('user_id', String(userId)).eq('amount', trxToDelete.amount).ilike('description', trxToDelete.desc);
+        } else {
+          await supabase.from('transactions').delete().eq('id', deleteId).eq('user_id', String(userId));
+        }
 
-      // Auto-reverse saldo celengan
-      if (trxToDelete && (trxToDelete.desc?.toLowerCase().startsWith('nabung goals:') || trxToDelete.desc?.toLowerCase().startsWith('nabung:'))) {
-        const goalName = trxToDelete.desc.replace(/Nabung Goals:|Nabung:/ig, '').trim();
-        const goalToUpdate = goals.find(g => g.goal_name.toLowerCase() === goalName.toLowerCase());
-        
-        if (goalToUpdate) {
-          const newAmount = Math.max(0, Number(goalToUpdate.current_amount) - Number(trxToDelete.amount));
-          await supabase.from('goals').update({ current_amount: newAmount }).eq('id', goalToUpdate.id);
+        // Auto-reverse saldo celengan
+        if (trxToDelete.desc?.toLowerCase().startsWith('nabung goals:') || trxToDelete.desc?.toLowerCase().startsWith('nabung:')) {
+          const goalName = trxToDelete.desc.replace(/Nabung Goals:|Nabung:/ig, '').trim();
+          const goalToUpdate = goals.find(g => g.goal_name.toLowerCase() === goalName.toLowerCase());
+          
+          if (goalToUpdate) {
+            const newAmount = Math.max(0, Number(goalToUpdate.current_amount) - Number(trxToDelete.amount));
+            await supabase.from('goals').update({ current_amount: newAmount }).eq('id', goalToUpdate.id);
+          }
         }
       }
 
@@ -223,7 +264,7 @@ export default function App() {
   if (loading) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center p-10">
       <Loader2 className="animate-spin text-emerald-500 w-12 h-12 mb-6" />
-      <Text className="font-bold tracking-widest text-slate-300 uppercase text-[10px]">Menghubungkan sistem...</Text>
+      <Text className="font-bold tracking-widest text-slate-300 uppercase text-[10px]">Sinkronisasi Multi-Database...</Text>
     </div>
   );
 
@@ -314,7 +355,7 @@ export default function App() {
         <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl px-5 lg:px-8 py-3 flex justify-between items-center border-b border-slate-100/60 shrink-0">
           <div className="flex items-center gap-4">
              <button onClick={() => setIsMobileSidebarOpen(true)} className="lg:hidden p-2 bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-emerald-600"><Menu size={20}/></button>
-             <Badge color="emerald" variant="solid" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-emerald-50">Live Sync Supabase</Badge>
+             <Badge color="indigo" variant="solid" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-indigo-50">Hybrid Sync: DB + Sheets</Badge>
           </div>
           <div className="flex items-center gap-3">
             {isDemo && <Badge color="amber" icon={Sparkles} className="font-bold px-2.5 py-0.5 rounded-full text-[8px]">Mode Demo</Badge>}
