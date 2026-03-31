@@ -20,6 +20,7 @@ import {
 /**
  * BudgetIN PRO - ENTERPRISE ULTIMATE (V22.0 - SMART DELETE GOALS)
  * Fix: Tambahan Modal Cerdas untuk Hapus Goal dengan opsi Refund atau Hapus Saja.
+ * Update: Auto-Reverse saldo celengan jika transaksi menabung dihapus via web.
  */
 
 // 🔥 SETUP KONEKSI SUPABASE
@@ -98,8 +99,24 @@ export default function App() {
     if (!deleteId || !userId) return;
     setIsDeleting(true);
     try {
+      // 1. Cari transaksi yang akan dihapus untuk dicek deskripsinya
+      const trxToDelete = transactions.find(t => t.id === deleteId);
+
+      // 2. Hapus dari Supabase
       const { error } = await supabase.from('transactions').delete().eq('id', deleteId).eq('user_id', String(userId));
       if (error) throw error;
+
+      // 3. 🔥 UPDATE: Jika itu transaksi nabung, tarik kembali uang dari celengan
+      if (trxToDelete && (trxToDelete.desc?.toLowerCase().startsWith('nabung goals:') || trxToDelete.desc?.toLowerCase().startsWith('nabung:'))) {
+        const goalName = trxToDelete.desc.replace(/Nabung Goals:|Nabung:/ig, '').trim();
+        const goalToUpdate = goals.find(g => g.goal_name.toLowerCase() === goalName.toLowerCase());
+        
+        if (goalToUpdate) {
+          const newAmount = Math.max(0, Number(goalToUpdate.current_amount) - Number(trxToDelete.amount));
+          await supabase.from('goals').update({ current_amount: newAmount }).eq('id', goalToUpdate.id);
+        }
+      }
+
       setDeleteId(null);
       fetchData(userId); 
       fetchGoals(userId);
