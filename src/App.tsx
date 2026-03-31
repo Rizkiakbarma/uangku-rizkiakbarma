@@ -1,15 +1,13 @@
 // @ts-nocheck
 /* eslint-disable */
 import React, { useState, useEffect, useMemo } from 'react';
-import { createClient } from '@supabase/supabase-js'; // 🔥 IMPORT SUPABASE
+import { createClient } from '@supabase/supabase-js'; 
 import { 
   Activity, Loader2, Lock, CheckCircle2, LayoutDashboard, History, 
   Search, RefreshCcw, Trash2, AlertTriangle, Target, Calculator, 
-  Coins, HeartHandshake, Wallet, Users, Home, Play, Heart, 
-  Smartphone, ShoppingBag, Globe, Coffee, Info, ArrowUpRight, 
-  ArrowDownRight, Zap, ChevronRight, ChevronLeft, Calendar, Menu, X, Settings, LogOut,
-  Sparkles, BarChart3, TrendingUp, Plus, FileText, Code2, Layers, Bell, ChevronDown,
-  LineChart as LineChartIcon
+  Coins, HeartHandshake, ArrowUpRight, ArrowDownRight, Zap, 
+  ChevronRight, ChevronLeft, Calendar, Menu, Settings, LogOut,
+  Sparkles, BarChart3, TrendingUp, LineChart as LineChartIcon
 } from 'lucide-react';
 
 import { 
@@ -18,9 +16,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V22.0 - SMART DELETE GOALS)
- * Fix: Tambahan Modal Cerdas untuk Hapus Goal dengan opsi Refund atau Hapus Saja.
- * Update: Auto-Reverse saldo celengan jika transaksi menabung dihapus via web.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V23.0 - BALANCED LAYOUT)
+ * Fix: Menyeimbangkan tinggi kolom kiri dan kanan agar tidak kosong saat di-scroll.
  */
 
 // 🔥 SETUP KONEKSI SUPABASE
@@ -34,7 +31,6 @@ const DUMMY_DATA = [
 ];
 
 export default function App() {
-  // --- 1. STATE MANAGEMENT ---
   const [activeTab, setActiveTab] = useState(localStorage.getItem('budgetin_last_tab') || 'overview');
   const [transactions, setTransactions] = useState([]);
   const [goals, setGoals] = useState([]); 
@@ -43,22 +39,16 @@ export default function App() {
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
   const [isDemo, setIsDemo] = useState(false);
-  
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
   const [isBarChart, setIsBarChart] = useState(true);
-  
   const [deleteId, setDeleteId] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // 🔥 STATE BARU UNTUK HAPUS GOAL
   const [deleteGoalData, setDeleteGoalData] = useState(null);
   const [isDeletingGoal, setIsDeletingGoal] = useState(false);
-
   const [monthlyBudget, setMonthlyBudget] = useState(5000000); 
   const [isSettingBudget, setIsSettingBudget] = useState(false);
 
-  // --- 2. CORE ENGINE ---
   const processIncomingData = (rawList) => {
     return rawList.map((item) => {
       const d = new Date(item.date);
@@ -91,7 +81,7 @@ export default function App() {
     try {
       const { data } = await supabase.from('goals').select('*').eq('user_id', String(idFromUrl)).order('created_at', { ascending: false });
       if (data) setGoals(data);
-    } catch (err) { console.error("Gagal menarik data goals", err); }
+    } catch (err) { console.error(err); }
   };
 
   const handleDelete = async () => {
@@ -99,14 +89,11 @@ export default function App() {
     if (!deleteId || !userId) return;
     setIsDeleting(true);
     try {
-      // 1. Cari transaksi yang akan dihapus untuk dicek deskripsinya
       const trxToDelete = transactions.find(t => t.id === deleteId);
-
-      // 2. Hapus dari Supabase
       const { error } = await supabase.from('transactions').delete().eq('id', deleteId).eq('user_id', String(userId));
       if (error) throw error;
 
-      // 3. 🔥 UPDATE: Jika itu transaksi nabung, tarik kembali uang dari celengan
+      // Auto-reverse saldo celengan
       if (trxToDelete && (trxToDelete.desc?.toLowerCase().startsWith('nabung goals:') || trxToDelete.desc?.toLowerCase().startsWith('nabung:'))) {
         const goalName = trxToDelete.desc.replace(/Nabung Goals:|Nabung:/ig, '').trim();
         const goalToUpdate = goals.find(g => g.goal_name.toLowerCase() === goalName.toLowerCase());
@@ -123,16 +110,13 @@ export default function App() {
     } catch (err) { console.error(err); } finally { setIsDeleting(false); }
   };
 
-  // 🔥 FUNGSI SMART DELETE GOAL
   const executeDeleteGoal = async (actionType) => {
     if (!deleteGoalData || !userId) return;
     setIsDeletingGoal(true);
     try {
-      // 1. Hapus Goal dari Database
       const { error: goalError } = await supabase.from('goals').delete().eq('id', deleteGoalData.id).eq('user_id', String(userId));
       if (goalError) throw goalError;
 
-      // 2. Jika pilih Refund, buat transaksi baru sebagai uang masuk
       if (actionType === 'refund' && deleteGoalData.current_amount > 0) {
         const { error: txError } = await supabase.from('transactions').insert([{
           user_id: String(userId),
@@ -146,13 +130,12 @@ export default function App() {
         if (txError) throw txError;
       }
 
-      // 3. Sukses, tutup modal dan refresh data
       setDeleteGoalData(null);
       fetchGoals(userId);
-      if (actionType === 'refund') fetchData(userId); // Refresh transaksi hanya jika ada refund
+      if (actionType === 'refund') fetchData(userId); 
     } catch (err) {
-      console.error("Gagal menghapus goal", err);
-      alert("Gagal memproses penghapusan target.");
+      console.error(err);
+      alert("Gagal memproses penghapusan.");
     } finally {
       setIsDeletingGoal(false);
     }
@@ -172,7 +155,6 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem('budgetin_last_tab', activeTab); }, [activeTab]);
 
-  // --- 3. ANALYTICS LOGIC ---
   const changeMonth = (offset) => {
     const newDate = new Date(viewDate);
     newDate.setMonth(newDate.getMonth() + offset);
@@ -235,8 +217,8 @@ export default function App() {
     setIsSettingBudget(false);
   };
 
-  const tremorColors = ["emerald-800", "emerald-600", "rose-500", "amber-500", "slate-800", "indigo-500", "cyan-600", "purple-500"];
-  const hexColors = ["#064E3B", "#10B981", "#F43F5E", "#F59E0B", "#1E293B", "#6366F1", "#0891B2", "#A855F7"];
+  const tremorColors = ["emerald", "teal", "cyan", "indigo", "violet", "fuchsia", "rose", "amber"];
+  const hexColors = ["#059669", "#0d9488", "#0891b2", "#4f46e5", "#7c3aed", "#c026d3", "#e11d48", "#d97706"];
 
   if (loading) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center p-10">
@@ -314,31 +296,15 @@ export default function App() {
                 </Text>
                 
                 <div className="flex flex-col gap-4">
-                  <button 
-                    onClick={() => executeDeleteGoal('refund')} 
-                    disabled={isDeletingGoal} 
-                    className="w-full py-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-2xl font-bold text-xs uppercase transition-all flex flex-col items-center justify-center gap-1 border border-emerald-200/60 shadow-sm"
-                  >
+                  <button onClick={() => executeDeleteGoal('refund')} disabled={isDeletingGoal} className="w-full py-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-2xl font-bold text-xs uppercase transition-all flex flex-col items-center justify-center gap-1 border border-emerald-200/60 shadow-sm">
                     <span>↩️ Batal & Refund Saldo</span>
                     <span className="text-[9px] font-medium normal-case text-emerald-600">Uang akan dikembalikan ke Saldo Utama</span>
                   </button>
-                  
-                  <button 
-                    onClick={() => executeDeleteGoal('delete_only')} 
-                    disabled={isDeletingGoal} 
-                    className="w-full py-4 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-2xl font-bold text-xs uppercase transition-all flex flex-col items-center justify-center gap-1 border border-rose-200/60 shadow-sm"
-                  >
+                  <button onClick={() => executeDeleteGoal('delete_only')} disabled={isDeletingGoal} className="w-full py-4 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-2xl font-bold text-xs uppercase transition-all flex flex-col items-center justify-center gap-1 border border-rose-200/60 shadow-sm">
                     <span>💸 Hapus Saja (Hangus)</span>
                     <span className="text-[9px] font-medium normal-case text-rose-500">Target selesai atau uang sudah terpakai</span>
                   </button>
-                  
-                  <button 
-                    onClick={() => setDeleteGoalData(null)} 
-                    disabled={isDeletingGoal} 
-                    className="w-full py-3 mt-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-xl font-bold text-[10px] uppercase transition-all"
-                  >
-                    Batal Kembali
-                  </button>
+                  <button onClick={() => setDeleteGoalData(null)} disabled={isDeletingGoal} className="w-full py-3 mt-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-xl font-bold text-[10px] uppercase transition-all">Batal Kembali</button>
                 </div>
              </Card>
           </div>
@@ -358,12 +324,14 @@ export default function App() {
         </header>
 
         <div className="flex-1 p-5 lg:p-7 max-w-8xl mx-auto w-full">
+            
             {/* ========================================================================= */}
-            {/* TAB: DASHBOARD (OVERVIEW) */}
+            {/* TAB: DASHBOARD (OVERVIEW) - BALANCED MASONRY LAYOUT */}
             {/* ========================================================================= */}
             {activeTab === 'overview' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                 
+                {/* 1. ROW ATAS: HERO SALDO */}
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 lg:p-8 rounded-[2.5rem] shadow-lg border-t border-white ring-1 ring-slate-100/40">
                   <div>
                     <Text className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[9px] mb-2 flex items-center gap-2"><div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div> Total saldo aktif</Text>
@@ -378,6 +346,7 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* 2. ROW TENGAH: KPI CARDS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <Card className="rounded-[2rem] border-none shadow-[0_15px_30px_rgba(16,185,129,0.05)] p-6 lg:p-8 bg-white ring-1 ring-slate-100 hover:translate-y-[-3px] transition-all">
                     <Flex alignItems="center">
@@ -393,31 +362,58 @@ export default function App() {
                   </Card>
                 </div>
 
+                {/* 3. ROW BAWAH: BALANCED COLUMNS */}
                 <div className="flex flex-col xl:flex-row gap-6">
-                  <div className="flex-1 min-w-0 order-2 xl:order-1 space-y-6">
-                    <Card className="rounded-3xl border-none shadow-lg p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group">
-                        <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><Zap size={140} /></div>
-                        <Title className="font-bold text-slate-900 uppercase text-[10px] tracking-widest flex items-center gap-2 mb-6"><TrendingUp size={18} strokeWidth={2.5} className="text-emerald-600"/> Efisiensi</Title>
-                        <div className="space-y-4">
-                          <Flex><Text className="font-bold text-emerald-800 text-[10px] uppercase">Potensi hemat</Text><Text className="font-black text-emerald-700 text-3xl">24%</Text></Flex>
-                          <ProgressBar value={24} color="emerald" className="h-3 rounded-full shadow-inner" />
+                  
+                  {/* --- KOLOM KIRI: MAIN CHARTS (Lebih Lebar) --- */}
+                  <div className="flex-1 min-w-0 space-y-6">
+                    
+                    {/* TREN HARIAN (Pindah ke Kiri) */}
+                    <Card className="rounded-[2.5rem] border-none shadow-xl p-6 lg:p-8 bg-white ring-1 ring-slate-100/30">
+                      <Flex className="mb-6 items-start justify-between">
+                          <div><Title className="font-bold text-slate-900 border-l-4 border-emerald-600 pl-3 text-[11px] tracking-widest leading-none uppercase">Tren harian</Title></div>
+                          <div className="flex bg-slate-50 p-1 rounded-xl ring-1 ring-slate-100 shrink-0">
+                              <button onClick={() => setIsBarChart(true)} className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase ${isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Batang</button>
+                              <button onClick={() => setIsBarChart(false)} className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase ${!isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Garis</button>
+                          </div>
+                      </Flex>
+                      <div className="h-56 mt-4">
+                          {isBarChart ? (
+                            <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} showGridLines={false} />
+                          ) : (
+                            <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} curveType="monotone" showGridLines={false} />
+                          )}
+                      </div>
+                    </Card>
+
+                    {/* ALOKASI DANA (Pindah ke Kiri) */}
+                    <Card className="rounded-[2.5rem] border-none shadow-lg ring-1 ring-slate-100 p-8 bg-white flex flex-col hover:shadow-xl transition-shadow">
+                      <Title className="font-bold text-[10px] text-slate-400 uppercase tracking-[0.3em] mb-8 border-l-4 border-emerald-600 pl-3 leading-none">Alokasi dana</Title>
+                      
+                      <div className="flex flex-col md:flex-row items-center gap-8">
+                        <div className="w-full md:w-1/2">
+                          <DonutChart className="h-52 w-full" data={categoryData} category="amount" index="name" valueFormatter={axisFormatter} colors={tremorColors} showAnimation={true} />
                         </div>
-                        <Text className="mt-8 text-[11px] font-medium text-slate-600 italic border-l-4 border-emerald-500 pl-4 py-1 leading-relaxed">
-                            {leakageInfo.count > 1 ? `"Detektor AI mendeteksi pengeluaran berulang pada kategori ${leakageInfo.name.toLowerCase()}."` : `"Arus kas Anda bulan ini sangat efisien. Pertahankan!"`}
-                        </Text>
+                        <div className="w-full md:w-1/2 space-y-3 max-h-52 overflow-y-auto custom-scrollbar pr-2">
+                          {categoryData.length > 0 ? categoryData.map((c, i) => (
+                            <Flex key={c.name} className="border-b border-slate-50 pb-3 last:border-0 last:pb-0">
+                              <div className="flex items-center gap-3">
+                                <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: hexColors[i % hexColors.length] }}></div>
+                                <Text className="text-[11px] font-bold text-slate-500 uppercase tracking-widest truncate max-w-[140px]">{c.name}</Text>
+                              </div>
+                              <Text className="font-black text-slate-900 text-xs tracking-tighter">{formatRp(c.amount)}</Text>
+                            </Flex>
+                          )) : <Text className="text-center text-xs text-slate-400 font-medium italic">Belum ada pengeluaran bulan ini.</Text>}
+                        </div>
+                      </div>
                     </Card>
-                    <Card className="rounded-3xl border-none shadow-lg p-7 bg-slate-900 text-white overflow-hidden relative border-t border-white/5">
-                        <div className="absolute -bottom-10 -right-10 opacity-10"><Activity size={180} /></div>
-                        <Title className="text-emerald-400 font-bold uppercase text-[10px] tracking-[0.3em] mb-8 leading-none">Batas harian aman</Title>
-                        <Metric className="text-white font-black text-4xl tracking-tighter drop-shadow-md">{formatRp(stats.balance > 0 ? stats.balance / 30 : 0).replace('Rp', '').trim()}</Metric>
-                        <Text className="text-emerald-100 font-medium text-[10px] mt-6 opacity-80 leading-relaxed">Estimasi jatah pengeluaran harian agar saldo cukup dan aman sampai akhir bulan.</Text>
-                    </Card>
+
                   </div>
 
-                  {/* RIGHT COLUMN: WIDGETS & AI */}
-                  <aside className="w-full xl:w-96 shrink-0 order-1 xl:order-2 space-y-6">
+                  {/* --- KOLOM KANAN: WIDGETS & AI (Lebih Sempit, Pas untuk Sidebar) --- */}
+                  <aside className="w-full xl:w-96 shrink-0 space-y-6">
                     
-                    {/* 🔥 🎯 HIGHLIGHT SAVING GOAL (VIRTUAL ENVELOPE) */}
+                    {/* FOKUS TARGET 🎯 */}
                     {activeGoal ? (
                       <Card className="rounded-[2.5rem] border-none shadow-xl p-8 bg-slate-900 text-white relative overflow-hidden group hover:shadow-2xl transition-all cursor-pointer" onClick={() => setActiveTab('goals')}>
                         <div className="absolute -top-10 -right-10 opacity-10 group-hover:scale-110 transition-transform duration-1000"><Target size={160} /></div>
@@ -450,42 +446,7 @@ export default function App() {
                       </Card>
                     )}
 
-                    <Card className="rounded-[2.5rem] border-none shadow-lg ring-1 ring-slate-100 p-8 bg-white flex flex-col hover:shadow-xl transition-shadow">
-                      <Title className="font-bold text-[10px] text-slate-400 uppercase tracking-[0.3em] mb-8 border-l-4 border-emerald-600 pl-3 leading-none">Alokasi dana</Title>
-                      <DonutChart className="h-52" data={categoryData} category="amount" index="name" valueFormatter={axisFormatter} colors={tremorColors} showAnimation={true} />
-                      <div className="mt-8 space-y-3 max-h-48 overflow-y-auto custom-scrollbar pr-2">
-                        {categoryData.length > 0 ? categoryData.map((c, i) => (
-                          <Flex key={c.name} className="border-b border-slate-50 pb-3 last:border-0 last:pb-0">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: hexColors[i % hexColors.length] }}></div>
-                              <Text className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate max-w-[120px]">{c.name}</Text>
-                            </div>
-                            <Text className="font-black text-slate-900 text-[11px] tracking-tighter">{formatRp(c.amount)}</Text>
-                          </Flex>
-                        )) : <Text className="text-center text-xs text-slate-400 font-medium italic">Belum ada pengeluaran bulan ini.</Text>}
-                      </div>
-                    </Card>
-
-                    <Card className="rounded-[2.5rem] border-none shadow-xl p-6 lg:p-8 bg-white ring-1 ring-slate-100/30">
-                      <Flex className="mb-2 items-start justify-between">
-                          <div>
-                            <Title className="font-bold text-slate-900 border-l-4 border-emerald-600 pl-3 text-[11px] tracking-widest leading-none uppercase">Tren harian</Title>
-                          </div>
-                          <div className="flex bg-slate-50 p-1 rounded-xl ring-1 ring-slate-100 shrink-0">
-                              <button onClick={() => setIsBarChart(true)} className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase ${isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Batang</button>
-                              <button onClick={() => setIsBarChart(false)} className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase ${!isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Garis</button>
-                          </div>
-                      </Flex>
-                      <div className="h-48 mt-4">
-                          {isBarChart ? (
-                            <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} showGridLines={false} />
-                          ) : (
-                            <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} curveType="monotone" showGridLines={false} />
-                          )}
-                      </div>
-                      <Text className="text-[9px] text-slate-400 font-medium mt-4 text-center italic">Ketuk grafik untuk detail nominal.</Text>
-                    </Card>
-
+                    {/* TARGET ANGGARAN */}
                     <Card className="rounded-[2.5rem] border-none shadow-lg ring-1 ring-slate-100 p-8 bg-white overflow-hidden relative">
                       <Flex className="mb-8 items-center justify-between">
                           <Title className="text-[10px] font-bold text-slate-800 tracking-[0.3em] leading-none uppercase">Target anggaran</Title>
@@ -511,6 +472,28 @@ export default function App() {
                         </div>
                       </div>
                     </Card>
+
+                    {/* EFISIENSI AI */}
+                    <Card className="rounded-3xl border-none shadow-lg p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group">
+                        <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><Zap size={140} /></div>
+                        <Title className="font-bold text-slate-900 uppercase text-[10px] tracking-widest flex items-center gap-2 mb-6"><TrendingUp size={18} strokeWidth={2.5} className="text-emerald-600"/> Efisiensi</Title>
+                        <div className="space-y-4">
+                          <Flex><Text className="font-bold text-emerald-800 text-[10px] uppercase">Potensi hemat</Text><Text className="font-black text-emerald-700 text-3xl">24%</Text></Flex>
+                          <ProgressBar value={24} color="emerald" className="h-3 rounded-full shadow-inner" />
+                        </div>
+                        <Text className="mt-8 text-[11px] font-medium text-slate-600 italic border-l-4 border-emerald-500 pl-4 py-1 leading-relaxed">
+                            {leakageInfo.count > 1 ? `"Detektor AI mendeteksi pengeluaran berulang pada kategori ${leakageInfo.name.toLowerCase()}."` : `"Arus kas Anda bulan ini sangat efisien. Pertahankan!"`}
+                        </Text>
+                    </Card>
+
+                    {/* BATAS HARIAN AMAN */}
+                    <Card className="rounded-3xl border-none shadow-lg p-7 bg-slate-900 text-white overflow-hidden relative border-t border-white/5">
+                        <div className="absolute -bottom-10 -right-10 opacity-10"><Activity size={180} /></div>
+                        <Title className="text-emerald-400 font-bold uppercase text-[10px] tracking-[0.3em] mb-8 leading-none">Batas harian aman</Title>
+                        <Metric className="text-white font-black text-4xl tracking-tighter drop-shadow-md">{formatRp(stats.balance > 0 ? stats.balance / 30 : 0).replace('Rp', '').trim()}</Metric>
+                        <Text className="text-emerald-100 font-medium text-[10px] mt-6 opacity-80 leading-relaxed">Estimasi jatah pengeluaran harian agar saldo cukup sampai akhir bulan.</Text>
+                    </Card>
+
                   </aside>
                 </div>
               </div>
@@ -533,7 +516,6 @@ export default function App() {
                 <Grid numItemsMd={2} className="gap-6">
                   {goals.map(g => (
                     <Card key={g.id} className="rounded-[2.5rem] border-none shadow-sm p-8 bg-white ring-1 ring-slate-100 relative overflow-hidden group hover:shadow-xl transition-all hover:-translate-y-1">
-                      {/* 🔥 TOMBOL DELETE GOAL DI POJOK KARTU */}
                       <button 
                         onClick={(e) => { e.stopPropagation(); setDeleteGoalData(g); }} 
                         className="absolute top-6 right-6 p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
