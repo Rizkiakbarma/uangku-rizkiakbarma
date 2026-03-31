@@ -16,11 +16,11 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V24.1 - HYBRID SYNC + UI FIXES)
- * Fix: Warna Pie Chart vibrant, Y-Axis dilebarkan, X-Axis menampilkan semua hari sebulan penuh (Scrollable).
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V25.0 - UI PERFECTION)
+ * Fix: Hide backend info badge, Match UI colors with reference, Fix Y-Axis cutoff, Make BarChart slimmer & show all dates.
  */
 
-// 🔥 1. SETUP KONEKSI DUA SUMBER DATA
+// 🔥 1. SETUP KONEKSI DUA SUMBER DATA (HYBRID SYNC)
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyslKsTua7BE8pwmFh1xfRZn7QhfQMSKbGYvY3nAxx6qu41iRXJLBK-z8AsKVSd2_g1ng/exec"; 
 const SUPABASE_URL = "https://tdjzksdxnvxoaethaxeo.supabase.co";
 const SUPABASE_KEY = "sb_publishable_CIPEHIf12ctSTq_liVgWiA_E3n734fh";
@@ -65,18 +65,15 @@ export default function App() {
     });
   };
 
-  // 🔥 2. HYBRID FETCHING (Sheets + Supabase)
   const fetchData = async (idFromUrl) => {
     setLoading(true);
     try {
-      // Fetch dari Supabase
       let supaData = [];
       try {
         const { data } = await supabase.from('transactions').select('*').eq('user_id', String(idFromUrl));
         if (data) supaData = processIncomingData(data).map(item => ({ ...item, source: 'supabase' }));
       } catch (e) { console.warn("Supabase fetch failed", e); }
 
-      // Fetch dari Google Sheets
       let sheetData = [];
       try {
         const res = await fetch(`${GAS_API_URL}?userid=${idFromUrl}`);
@@ -86,7 +83,6 @@ export default function App() {
         }
       } catch (e) { console.warn("Sheets fetch failed", e); }
 
-      // Gabungkan dan Filter Duplikat (Tanggal, Nominal, Keterangan sama = Duplikat)
       const combined = [...supaData, ...sheetData];
       const uniqueTransactions = combined.filter((item, index, self) =>
         index === self.findIndex((t) => (
@@ -123,16 +119,13 @@ export default function App() {
       const trxToDelete = transactions.find(t => t.id === deleteId);
       
       if (trxToDelete) {
-        // Hapus dari sumber yang sesuai
         if (trxToDelete.source === 'sheet') {
           await fetch(`${GAS_API_URL}?userid=${userId}&action=delete&row=${trxToDelete.id}`);
-          // Hapus juga bayangannya di Supabase jika ada (Mencegah bug sinkronisasi)
           await supabase.from('transactions').delete().eq('user_id', String(userId)).eq('amount', trxToDelete.amount).ilike('description', trxToDelete.desc);
         } else {
           await supabase.from('transactions').delete().eq('id', deleteId).eq('user_id', String(userId));
         }
 
-        // Auto-reverse saldo celengan
         if (trxToDelete.desc?.toLowerCase().startsWith('nabung goals:') || trxToDelete.desc?.toLowerCase().startsWith('nabung:')) {
           const goalName = trxToDelete.desc.replace(/Nabung Goals:|Nabung:/ig, '').trim();
           const goalToUpdate = goals.find(g => g.goal_name.toLowerCase() === goalName.toLowerCase());
@@ -214,7 +207,7 @@ export default function App() {
     const data = [];
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate(); // Mendapatkan total hari di bulan tersebut
+    const daysInMonth = new Date(year, month + 1, 0).getDate(); 
     
     // Menampilkan 1 bulan full agar tanggal tidak ada yang terlewat
     for (let i = 1; i <= daysInMonth; i++) {
@@ -264,14 +257,15 @@ export default function App() {
     setIsSettingBudget(false);
   };
 
-  // 🔥 PALETTE WARNA TERANG (VIBRANT) UNTUK PIE CHART
-  const tremorColors = ["emerald", "rose", "amber", "blue", "purple", "cyan", "fuchsia", "orange"];
-  const hexColors = ["#10b981", "#f43f5e", "#f59e0b", "#3b82f6", "#a855f7", "#06b6d4", "#d946ef", "#f97316"];
+  // 🔥 WARNA SESUAI REFERENSI FOTO (VIBRANT & ELEGAN)
+  // Dark Green, Emerald, Rose/Pink, Amber/Orange, Navy
+  const tremorColors = ["emerald-800", "emerald-500", "rose-500", "amber-500", "slate-800", "blue-500", "fuchsia-500", "cyan-500"];
+  const hexColors = ["#065f46", "#10b981", "#f43f5e", "#f59e0b", "#1e293b", "#3b82f6", "#d946ef", "#06b6d4"];
 
   if (loading) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center p-10">
       <Loader2 className="animate-spin text-emerald-500 w-12 h-12 mb-6" />
-      <Text className="font-bold tracking-widest text-slate-300 uppercase text-[10px]">Sinkronisasi Multi-Database...</Text>
+      <Text className="font-bold tracking-widest text-slate-300 uppercase text-[10px]">Memuat data...</Text>
     </div>
   );
 
@@ -362,7 +356,8 @@ export default function App() {
         <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl px-5 lg:px-8 py-3 flex justify-between items-center border-b border-slate-100/60 shrink-0">
           <div className="flex items-center gap-4">
              <button onClick={() => setIsMobileSidebarOpen(true)} className="lg:hidden p-2 bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-emerald-600"><Menu size={20}/></button>
-             <Badge color="indigo" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-indigo-50">Hybrid Sync: DB + Sheets</Badge>
+             {/* 🔥 TULISAN UNGU DIGANTI JADI HIJAU PROFESSIONAL USER-FACING */}
+             <Badge color="emerald" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-emerald-100 animate-pulse">Live Sync Active</Badge>
           </div>
           <div className="flex items-center gap-3">
             {isDemo && <Badge color="amber" icon={Sparkles} className="font-bold px-2.5 py-0.5 rounded-full text-[8px]">Mode Demo</Badge>}
@@ -374,7 +369,7 @@ export default function App() {
         <div className="flex-1 p-5 lg:p-7 max-w-8xl mx-auto w-full">
             
             {/* ========================================================================= */}
-            {/* TAB: DASHBOARD (OVERVIEW) - BALANCED MASONRY LAYOUT */}
+            {/* TAB: DASHBOARD (OVERVIEW) */}
             {/* ========================================================================= */}
             {activeTab === 'overview' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
@@ -413,10 +408,10 @@ export default function App() {
                 {/* 3. ROW BAWAH: BALANCED COLUMNS */}
                 <div className="flex flex-col xl:flex-row gap-6">
                   
-                  {/* --- KOLOM KIRI: MAIN CHARTS (Lebih Lebar) --- */}
+                  {/* --- KOLOM KIRI: MAIN CHARTS --- */}
                   <div className="flex-1 min-w-0 space-y-6">
                     
-                    {/* TREN HARIAN (Pindah ke Kiri + Fitur Scroll + YAxis Lebar) */}
+                    {/* TREN HARIAN (YAxis lebar, Scrollable 30 Hari, Batang Kecil) */}
                     <Card className="rounded-[2.5rem] border-none shadow-xl p-6 lg:p-8 bg-white ring-1 ring-slate-100/30">
                       <Flex className="mb-2 items-start justify-between">
                           <div><Title className="font-bold text-slate-900 border-l-4 border-emerald-600 pl-3 text-[11px] tracking-widest leading-none uppercase">Tren harian</Title></div>
@@ -426,17 +421,18 @@ export default function App() {
                           </div>
                       </Flex>
                       <div className="w-full overflow-x-auto custom-scrollbar pb-4 mt-4">
-                          <div className="h-56 min-w-[900px] pr-4">
+                          {/* 🔥 MIN WIDTH SANGAT BESAR AGAR BATANG KECIL DAN SEMUA TANGGAL MUNCUL */}
+                          <div className="h-56 min-w-[1200px] pr-4">
                               {isBarChart ? (
-                                <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={65} showGridLines={false} />
+                                <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={70} showGridLines={false} />
                               ) : (
-                                <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={65} curveType="monotone" showGridLines={false} />
+                                <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={70} curveType="monotone" showGridLines={false} />
                               )}
                           </div>
                       </div>
                     </Card>
 
-                    {/* ALOKASI DANA (Pindah ke Kiri) */}
+                    {/* ALOKASI DANA */}
                     <Card className="rounded-[2.5rem] border-none shadow-lg ring-1 ring-slate-100 p-8 bg-white flex flex-col hover:shadow-xl transition-shadow">
                       <Title className="font-bold text-[10px] text-slate-400 uppercase tracking-[0.3em] mb-8 border-l-4 border-emerald-600 pl-3 leading-none">Alokasi dana</Title>
                       
@@ -460,7 +456,7 @@ export default function App() {
 
                   </div>
 
-                  {/* --- KOLOM KANAN: WIDGETS & AI (Lebih Sempit, Pas untuk Sidebar) --- */}
+                  {/* --- KOLOM KANAN: WIDGETS --- */}
                   <aside className="w-full xl:w-96 shrink-0 space-y-6">
                     
                     {/* FOKUS TARGET 🎯 */}
@@ -550,7 +546,7 @@ export default function App() {
             )}
 
             {/* ========================================================================= */}
-            {/* 🔥 TAB: GOAL CENTER (TARGET TABUNGAN & RIWAYAT KHUSUS) */}
+            {/* 🔥 TAB: GOAL CENTER */}
             {/* ========================================================================= */}
             {activeTab === 'goals' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
