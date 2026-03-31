@@ -18,11 +18,11 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V21.0 - FULL SUPABASE)
- * Fix: Migrasi Total Transaksi & Goals menggunakan Supabase untuk speed maksimal.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V22.0 - SMART DELETE GOALS)
+ * Fix: Tambahan Modal Cerdas untuk Hapus Goal dengan opsi Refund atau Hapus Saja.
  */
 
-// 🔥 SETUP KONEKSI SUPABASE SAJA (Meninggalkan GAS untuk Tarik Data)
+// 🔥 SETUP KONEKSI SUPABASE
 const SUPABASE_URL = "https://tdjzksdxnvxoaethaxeo.supabase.co";
 const SUPABASE_KEY = "sb_publishable_CIPEHIf12ctSTq_liVgWiA_E3n734fh";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -30,10 +30,6 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const DUMMY_DATA = [
   { id: 991, date: new Date(), amount: 15500000, type: 'MASUK', category: 'MASUK', desc: 'Gaji Bulanan (Contoh)' },
   { id: 992, date: new Date(), amount: 250000, type: 'KELUAR', category: 'Food and Beverages', desc: 'Makan Siang' },
-  { id: 993, date: new Date(), amount: 1200000, type: 'KELUAR', category: 'TEMPAT TINGGAL', desc: 'Biaya Kost' },
-  { id: 994, date: new Date(), amount: 500000, type: 'KELUAR', category: 'SEDEKAH/ZAKAT', desc: 'Infaq Masjid' },
-  { id: 995, date: new Date(), amount: 150000, type: 'KELUAR', category: 'TRANSPORTASI', desc: 'Bensin Motor' },
-  { id: 996, date: new Date(), amount: 2500000, type: 'MASUK', category: 'MASUK', desc: 'Bonus Proyek' },
 ];
 
 export default function App() {
@@ -53,6 +49,11 @@ export default function App() {
   
   const [deleteId, setDeleteId] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // 🔥 STATE BARU UNTUK HAPUS GOAL
+  const [deleteGoalData, setDeleteGoalData] = useState(null);
+  const [isDeletingGoal, setIsDeletingGoal] = useState(false);
+
   const [monthlyBudget, setMonthlyBudget] = useState(5000000); 
   const [isSettingBudget, setIsSettingBudget] = useState(false);
 
@@ -62,7 +63,7 @@ export default function App() {
       const d = new Date(item.date);
       return {
         ...item,
-        desc: item.description || item.desc || "Transaksi", // 🔥 Menyesuaikan kolom description di Supabase
+        desc: item.description || item.desc || "Transaksi",
         dateObj: d,
         dateKey: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
         dateStr: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
@@ -72,93 +73,87 @@ export default function App() {
     }).sort((a, b) => b.dateObj - a.dateObj);
   };
 
-  // 🔥 FUNGSI TARIK DATA TRANSAKSI 100% VIA SUPABASE
   const fetchData = async (idFromUrl) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', String(idFromUrl))
-        .order('date', { ascending: false });
-
+      const { data, error } = await supabase.from('transactions').select('*').eq('user_id', String(idFromUrl)).order('date', { ascending: false });
       if (error) throw error;
-      
-      if (data) {
-        setTransactions(processIncomingData(data));
-        setError(null);
-      }
+      if (data) setTransactions(processIncomingData(data));
     } catch (err) {
       console.error(err);
-      setError("Gagal sinkronisasi data dari Supabase.");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔥 FUNGSI TARIK DATA GOALS DARI SUPABASE
   const fetchGoals = async (idFromUrl) => {
     try {
-      const { data } = await supabase
-        .from('goals')
-        .select('*')
-        .eq('user_id', String(idFromUrl))
-        .order('created_at', { ascending: false });
+      const { data } = await supabase.from('goals').select('*').eq('user_id', String(idFromUrl)).order('created_at', { ascending: false });
       if (data) setGoals(data);
-    } catch (err) {
-      console.error("Gagal menarik data goals", err);
-    }
+    } catch (err) { console.error("Gagal menarik data goals", err); }
   };
 
-  // 🔥 HAPUS TRANSAKSI VIA SUPABASE
   const handleDelete = async () => {
-    if (isDemo) {
-      setTransactions(prev => prev.filter(t => t.id !== deleteId));
-      setDeleteId(null);
-      return;
-    }
+    if (isDemo) { setTransactions(prev => prev.filter(t => t.id !== deleteId)); setDeleteId(null); return; }
     if (!deleteId || !userId) return;
     setIsDeleting(true);
     try {
-      const { error } = await supabase
-        .from('transactions')
-        .delete()
-        .eq('id', deleteId)
-        .eq('user_id', String(userId));
-        
+      const { error } = await supabase.from('transactions').delete().eq('id', deleteId).eq('user_id', String(userId));
       if (error) throw error;
-
       setDeleteId(null);
-      // Data akan ter-refresh otomatis via subscription di bawah, atau panggil manual
       fetchData(userId); 
       fetchGoals(userId);
-    } catch (err) { 
-      console.error(err); 
-      alert("Gagal menghapus transaksi.");
-    } finally { 
-      setIsDeleting(false); 
+    } catch (err) { console.error(err); } finally { setIsDeleting(false); }
+  };
+
+  // 🔥 FUNGSI SMART DELETE GOAL
+  const executeDeleteGoal = async (actionType) => {
+    if (!deleteGoalData || !userId) return;
+    setIsDeletingGoal(true);
+    try {
+      // 1. Hapus Goal dari Database
+      const { error: goalError } = await supabase.from('goals').delete().eq('id', deleteGoalData.id).eq('user_id', String(userId));
+      if (goalError) throw goalError;
+
+      // 2. Jika pilih Refund, buat transaksi baru sebagai uang masuk
+      if (actionType === 'refund' && deleteGoalData.current_amount > 0) {
+        const { error: txError } = await supabase.from('transactions').insert([{
+          user_id: String(userId),
+          date: new Date().toISOString(),
+          description: `Refund Tabungan: ${deleteGoalData.goal_name}`,
+          amount: deleteGoalData.current_amount,
+          type: 'MASUK',
+          category: 'MASUK',
+          status: 'Selesai'
+        }]);
+        if (txError) throw txError;
+      }
+
+      // 3. Sukses, tutup modal dan refresh data
+      setDeleteGoalData(null);
+      fetchGoals(userId);
+      if (actionType === 'refund') fetchData(userId); // Refresh transaksi hanya jika ada refund
+    } catch (err) {
+      console.error("Gagal menghapus goal", err);
+      alert("Gagal memproses penghapusan target.");
+    } finally {
+      setIsDeletingGoal(false);
     }
   };
 
   useEffect(() => {
     const idFromUrl = new URLSearchParams(window.location.search).get('userid');
     if (!idFromUrl) {
-      setIsDemo(true);
-      setTransactions(processIncomingData(DUMMY_DATA));
-      setLoading(false);
-      return;
+      setIsDemo(true); setTransactions(processIncomingData(DUMMY_DATA)); setLoading(false); return;
     }
     setUserId(idFromUrl);
     fetchData(idFromUrl);
     fetchGoals(idFromUrl); 
-
     const savedBudget = localStorage.getItem(`budgetin_budget_${idFromUrl}`);
     if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('budgetin_last_tab', activeTab);
-  }, [activeTab]);
+  useEffect(() => { localStorage.setItem('budgetin_last_tab', activeTab); }, [activeTab]);
 
   // --- 3. ANALYTICS LOGIC ---
   const changeMonth = (offset) => {
@@ -173,13 +168,8 @@ export default function App() {
     return { balance: income - expense, income, expense };
   }, [transactions]);
 
-  const filteredByMonth = useMemo(() => 
-    transactions.filter(t => t.month === viewDate.getMonth() && t.year === viewDate.getFullYear())
-  , [transactions, viewDate]);
-
-  const totalKeluarBulanTerpilih = useMemo(() => 
-    filteredByMonth.filter(t => t.type?.toUpperCase() === 'KELUAR').reduce((a, b) => a + Number(b.amount), 0)
-  , [filteredByMonth]);
+  const filteredByMonth = useMemo(() => transactions.filter(t => t.month === viewDate.getMonth() && t.year === viewDate.getFullYear()), [transactions, viewDate]);
+  const totalKeluarBulanTerpilih = useMemo(() => filteredByMonth.filter(t => t.type?.toUpperCase() === 'KELUAR').reduce((a, b) => a + Number(b.amount), 0), [filteredByMonth]);
 
   const chartData = useMemo(() => {
     const data = [];
@@ -218,7 +208,7 @@ export default function App() {
   const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
   const axisFormatter = (num) => new Intl.NumberFormat('id-ID', { notation: 'compact', compactDisplay: 'short' }).format(num);
 
-  const activeGoal = goals.find(g => g.is_active) || goals[0]; // 🔥 Penentu target aktif
+  const activeGoal = goals.find(g => g.is_active) || goals[0]; 
 
   const handleSaveBudget = (val) => {
     let newVal = parseInt(val);
@@ -268,7 +258,6 @@ export default function App() {
           <nav className="flex-1 space-y-2">
             <NavItem id="overview" label="Dashboard" icon={LayoutDashboard} />
             <NavItem id="ledger" label="Riwayat Mutasi" icon={History} />
-            {/* 🔥 MENU BARU UNTUK GOALS */}
             <NavItem id="goals" label="Target Goals" icon={Target} />
             <NavItem id="zakat" label="Kalkulator Zakat" icon={Calculator} />
             <div className="h-[1px] bg-slate-50 my-4 mx-2"></div>
@@ -281,6 +270,7 @@ export default function App() {
 
       <main className="flex-1 h-screen overflow-y-auto relative custom-scrollbar flex flex-col">
         
+        {/* 🔥 MODAL HAPUS TRANSAKSI UMUM */}
         {deleteId && (
             <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[200] flex items-center justify-center p-4">
                <Card className="max-w-sm w-full p-8 rounded-[2.5rem] shadow-2xl border-none animate-in zoom-in-95">
@@ -294,6 +284,47 @@ export default function App() {
                   </div>
                </Card>
             </div>
+        )}
+
+        {/* 🔥 MODAL SMART DELETE GOALS */}
+        {deleteGoalData && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md z-[300] flex items-center justify-center p-4">
+             <Card className="max-w-md w-full p-8 lg:p-10 rounded-[2.5rem] shadow-2xl border-none animate-in zoom-in-95">
+                <Target className="w-12 h-12 text-slate-800 mx-auto mb-4" strokeWidth={2}/>
+                <h3 className="text-xl font-black text-center mb-2 tracking-tight">HAPUS: {deleteGoalData.goal_name}</h3>
+                <Text className="text-center text-xs mb-8 text-slate-500 leading-relaxed px-4">
+                  Saat ini ada dana <strong className="text-emerald-600">{formatRp(deleteGoalData.current_amount)}</strong> yang sudah terkumpul. Apa yang ingin kamu lakukan dengan dana ini?
+                </Text>
+                
+                <div className="flex flex-col gap-4">
+                  <button 
+                    onClick={() => executeDeleteGoal('refund')} 
+                    disabled={isDeletingGoal} 
+                    className="w-full py-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-2xl font-bold text-xs uppercase transition-all flex flex-col items-center justify-center gap-1 border border-emerald-200/60 shadow-sm"
+                  >
+                    <span>↩️ Batal & Refund Saldo</span>
+                    <span className="text-[9px] font-medium normal-case text-emerald-600">Uang akan dikembalikan ke Saldo Utama</span>
+                  </button>
+                  
+                  <button 
+                    onClick={() => executeDeleteGoal('delete_only')} 
+                    disabled={isDeletingGoal} 
+                    className="w-full py-4 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-2xl font-bold text-xs uppercase transition-all flex flex-col items-center justify-center gap-1 border border-rose-200/60 shadow-sm"
+                  >
+                    <span>💸 Hapus Saja (Hangus)</span>
+                    <span className="text-[9px] font-medium normal-case text-rose-500">Target selesai atau uang sudah terpakai</span>
+                  </button>
+                  
+                  <button 
+                    onClick={() => setDeleteGoalData(null)} 
+                    disabled={isDeletingGoal} 
+                    className="w-full py-3 mt-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-xl font-bold text-[10px] uppercase transition-all"
+                  >
+                    Batal Kembali
+                  </button>
+                </div>
+             </Card>
+          </div>
         )}
 
         {/* HEADER */}
@@ -485,7 +516,15 @@ export default function App() {
                 <Grid numItemsMd={2} className="gap-6">
                   {goals.map(g => (
                     <Card key={g.id} className="rounded-[2.5rem] border-none shadow-sm p-8 bg-white ring-1 ring-slate-100 relative overflow-hidden group hover:shadow-xl transition-all hover:-translate-y-1">
-                      <Flex className="mb-5 items-start">
+                      {/* 🔥 TOMBOL DELETE GOAL DI POJOK KARTU */}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setDeleteGoalData(g); }} 
+                        className="absolute top-6 right-6 p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                      >
+                        <Trash2 size={18} strokeWidth={2.5}/>
+                      </button>
+
+                      <Flex className="mb-5 items-start pr-10">
                         <div>
                           <Title className="text-2xl font-black tracking-tight text-slate-900">{g.goal_name}</Title>
                           <Text className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Misi: {formatRp(g.target_amount)}</Text>
@@ -531,15 +570,17 @@ export default function App() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
-                        {transactions.filter(t => t.desc?.toLowerCase().includes('nabung goals:') || t.desc?.toLowerCase().includes('nabung:')).map(t => (
+                        {transactions.filter(t => t.desc?.toLowerCase().includes('nabung goals:') || t.desc?.toLowerCase().includes('nabung:') || t.desc?.toLowerCase().includes('refund tabungan:')).map(t => (
                           <tr key={t.id} className="hover:bg-emerald-50/30 transition-all group">
                             <td className="px-6 py-4 text-[11px] text-slate-400 font-bold uppercase whitespace-nowrap">{t.dateStr}</td>
                             <td className="px-6 py-4">
                               <Text className="font-extrabold text-slate-800 text-sm mb-1.5">{t.desc.replace(/Nabung Goals:|Nabung:/ig, 'Suntik Dana:').trim()}</Text>
-                              <Badge color="emerald" size="xs" variant="solid" className="font-bold text-[8px] uppercase tracking-widest shadow-sm">Dari Saldo Utama</Badge>
+                              <Badge color={t.desc?.toLowerCase().includes('refund') ? "rose" : "emerald"} size="xs" variant="solid" className="font-bold text-[8px] uppercase tracking-widest shadow-sm">
+                                {t.desc?.toLowerCase().includes('refund') ? "Ditarik" : "Dari Saldo Utama"}
+                              </Badge>
                             </td>
-                            <td className="px-6 py-4 text-right font-black text-sm whitespace-nowrap text-emerald-600">
-                              +{formatRp(t.amount).replace('Rp', '').trim()}
+                            <td className={`px-6 py-4 text-right font-black text-sm whitespace-nowrap ${t.desc?.toLowerCase().includes('refund') ? 'text-rose-500' : 'text-emerald-600'}`}>
+                              {t.desc?.toLowerCase().includes('refund') ? '-' : '+'}{formatRp(t.amount).replace('Rp', '').trim()}
                             </td>
                           </tr>
                         ))}
@@ -577,7 +618,7 @@ export default function App() {
                                   <td className="px-6 py-4 text-[11px] text-slate-400 font-bold uppercase whitespace-nowrap">{t.dateStr}</td>
                                   <td className="px-6 py-4">
                                       <Text className="font-extrabold text-slate-800 text-sm mb-1.5">{t.desc || "Manual"}</Text>
-                                      <Badge color={t.desc?.toLowerCase().includes('nabung') ? "indigo" : "emerald"} size="xs" variant="solid" className="font-bold text-[8px] uppercase tracking-widest">{t.category}</Badge>
+                                      <Badge color={t.desc?.toLowerCase().includes('nabung') ? "indigo" : t.type === 'MASUK' ? "emerald" : "rose"} size="xs" variant="solid" className="font-bold text-[8px] uppercase tracking-widest">{t.category}</Badge>
                                   </td>
                                   <td className={`px-6 py-4 text-right font-black text-sm whitespace-nowrap ${t.type === 'MASUK' ? 'text-emerald-600' : 'text-slate-900'}`}>
                                       {t.type === 'MASUK' ? '+' : '-'}{formatRp(t.amount).replace('Rp', '').trim()}
