@@ -16,9 +16,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V24.0 - HYBRID SYNC)
- * Fix: Menarik data ganda dari Google Sheets & Supabase sekaligus, 
- * lalu memfilter duplikat agar akun lama tetap memunculkan data.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V24.1 - HYBRID SYNC + UI FIXES)
+ * Fix: Warna Pie Chart vibrant, Y-Axis dilebarkan, X-Axis menampilkan semua hari sebulan penuh (Scrollable).
  */
 
 // 🔥 1. SETUP KONEKSI DUA SUMBER DATA
@@ -213,13 +212,20 @@ export default function App() {
 
   const chartData = useMemo(() => {
     const data = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(viewDate);
-      if (viewDate.getMonth() === new Date().getMonth()) d.setDate(new Date().getDate() - i);
-      else d.setDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 0).getDate() - i);
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate(); // Mendapatkan total hari di bulan tersebut
+    
+    // Menampilkan 1 bulan full agar tanggal tidak ada yang terlewat
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = new Date(year, month, i);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const amt = transactions.filter(t => t.type?.toUpperCase() === 'KELUAR' && t.dateKey === key).reduce((s, t) => s + Number(t.amount), 0);
-      data.push({ date: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }), "Pengeluaran": amt });
+      
+      data.push({ 
+        date: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }), 
+        "Pengeluaran": amt 
+      });
     }
     return data;
   }, [transactions, viewDate]);
@@ -258,8 +264,9 @@ export default function App() {
     setIsSettingBudget(false);
   };
 
-  const tremorColors = ["emerald", "teal", "cyan", "indigo", "violet", "fuchsia", "rose", "amber"];
-  const hexColors = ["#059669", "#0d9488", "#0891b2", "#4f46e5", "#7c3aed", "#c026d3", "#e11d48", "#d97706"];
+  // 🔥 PALETTE WARNA TERANG (VIBRANT) UNTUK PIE CHART
+  const tremorColors = ["emerald", "rose", "amber", "blue", "purple", "cyan", "fuchsia", "orange"];
+  const hexColors = ["#10b981", "#f43f5e", "#f59e0b", "#3b82f6", "#a855f7", "#06b6d4", "#d946ef", "#f97316"];
 
   if (loading) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center p-10">
@@ -355,7 +362,7 @@ export default function App() {
         <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl px-5 lg:px-8 py-3 flex justify-between items-center border-b border-slate-100/60 shrink-0">
           <div className="flex items-center gap-4">
              <button onClick={() => setIsMobileSidebarOpen(true)} className="lg:hidden p-2 bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-emerald-600"><Menu size={20}/></button>
-             <Badge color="indigo" variant="solid" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-indigo-50">Hybrid Sync: DB + Sheets</Badge>
+             <Badge color="indigo" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-indigo-50">Hybrid Sync: DB + Sheets</Badge>
           </div>
           <div className="flex items-center gap-3">
             {isDemo && <Badge color="amber" icon={Sparkles} className="font-bold px-2.5 py-0.5 rounded-full text-[8px]">Mode Demo</Badge>}
@@ -409,21 +416,23 @@ export default function App() {
                   {/* --- KOLOM KIRI: MAIN CHARTS (Lebih Lebar) --- */}
                   <div className="flex-1 min-w-0 space-y-6">
                     
-                    {/* TREN HARIAN (Pindah ke Kiri) */}
+                    {/* TREN HARIAN (Pindah ke Kiri + Fitur Scroll + YAxis Lebar) */}
                     <Card className="rounded-[2.5rem] border-none shadow-xl p-6 lg:p-8 bg-white ring-1 ring-slate-100/30">
-                      <Flex className="mb-6 items-start justify-between">
+                      <Flex className="mb-2 items-start justify-between">
                           <div><Title className="font-bold text-slate-900 border-l-4 border-emerald-600 pl-3 text-[11px] tracking-widest leading-none uppercase">Tren harian</Title></div>
                           <div className="flex bg-slate-50 p-1 rounded-xl ring-1 ring-slate-100 shrink-0">
                               <button onClick={() => setIsBarChart(true)} className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase ${isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Batang</button>
                               <button onClick={() => setIsBarChart(false)} className={`px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase ${!isBarChart ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Garis</button>
                           </div>
                       </Flex>
-                      <div className="h-56 mt-4">
-                          {isBarChart ? (
-                            <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} showGridLines={false} />
-                          ) : (
-                            <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={40} curveType="monotone" showGridLines={false} />
-                          )}
+                      <div className="w-full overflow-x-auto custom-scrollbar pb-4 mt-4">
+                          <div className="h-56 min-w-[900px] pr-4">
+                              {isBarChart ? (
+                                <BarChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={65} showGridLines={false} />
+                              ) : (
+                                <AreaChart className="h-full" data={chartData} index="date" categories={["Pengeluaran"]} colors={["emerald"]} valueFormatter={axisFormatter} showAnimation={true} yAxisWidth={65} curveType="monotone" showGridLines={false} />
+                              )}
+                          </div>
                       </div>
                     </Card>
 
@@ -710,8 +719,10 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #FCFCFC; }
         ::-webkit-scrollbar { width: 0px; }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 20px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slide-up { from { transform: translateY(15px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .animate-in { animation: fade-in 0.5s ease-out, slide-up 0.5s ease-out; }
