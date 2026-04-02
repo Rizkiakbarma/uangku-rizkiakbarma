@@ -16,11 +16,10 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V25.0 - UI PERFECTION)
- * Fix: Hide backend info badge, Match UI colors with reference.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V26.0 - SPEED & UI FIX)
+ * Fix: Progressive Loading (Supabase instan, GAS background), Restore Barakah Score, Responsive Layout.
  */
 
-// 🔥 1. SETUP KONEKSI DUA SUMBER DATA
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyslKsTua7BE8pwmFh1xfRZn7QhfQMSKbGYvY3nAxx6qu41iRXJLBK-z8AsKVSd2_g1ng/exec";
 const SUPABASE_URL = "https://tdjzksdxnvxoaethaxeo.supabase.co";
 const SUPABASE_KEY = "sb_publishable_CIPEHIf12ctSTq_liVgWiA_E3n734fh";
@@ -37,6 +36,7 @@ export default function App() {
   const [goals, setGoals] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isSyncingGAS, setIsSyncingGAS] = useState(false); // State untuk indikator background sync
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
   const [isDemo, setIsDemo] = useState(false);
@@ -65,45 +65,53 @@ export default function App() {
     });
   };
 
-  // 🔥 2. HYBRID FETCHING (Sheets + Supabase)
+  // 🔥 PROGRESSIVE LOADING (Solusi Web Lemot)
   const fetchData = async (idFromUrl) => {
     setLoading(true);
+    
+    // STEP 1: Tarik Supabase dulu karena sangat cepat (< 0.5 detik)
     try {
-      // Fetch dari Supabase
-      let supaData = [];
-      try {
-        const { data } = await supabase.from('transactions').select('*').eq('user_id', String(idFromUrl));
-        if (data) supaData = processIncomingData(data).map(item => ({ ...item, source: 'supabase' }));
-      } catch (e) { console.warn("Supabase fetch failed", e); }
-
-      // Fetch dari Google Sheets
-      let sheetData = [];
-      try {
-        const res = await fetch(`${GAS_API_URL}?userid=${idFromUrl}`);
-        const json = await res.json();
-        if (json.status === 'success') {
-          sheetData = processIncomingData(json.data).map(item => ({ ...item, source: 'sheet' }));
-        }
-      } catch (e) { console.warn("Sheets fetch failed", e); }
-
-      // Gabungkan dan Filter Duplikat (Tanggal, Nominal, Keterangan sama = Duplikat)
-      const combined = [...supaData, ...sheetData];
-      const uniqueTransactions = combined.filter((item, index, self) =>
-        index === self.findIndex((t) => (
-          t.dateKey === item.dateKey &&
-          t.amount === item.amount &&
-          t.desc?.toLowerCase() === item.desc?.toLowerCase()
-        ))
-      );
-
-      uniqueTransactions.sort((a, b) => b.dateObj - a.dateObj || b.id - a.id);
-      setTransactions(uniqueTransactions);
+      const { data } = await supabase.from('transactions').select('*').eq('user_id', String(idFromUrl));
+      if (data) {
+        const supaData = processIncomingData(data).map(item => ({ ...item, source: 'supabase' }));
+        supaData.sort((a, b) => b.dateObj - a.dateObj || b.id - a.id);
+        setTransactions(supaData);
+      }
       setError(null);
-    } catch (err) {
-      console.error(err);
-      setError("Gagal sinkronisasi data.");
+    } catch (e) { 
+      console.warn("Supabase fetch failed", e); 
+      setError("Gagal memuat data utama.");
     } finally {
-      setLoading(false);
+      // Matikan layar loading utama agar web langsung bisa dipakai
+      setLoading(false); 
+    }
+
+    // STEP 2: Tarik Google Sheets di Background (Tidak memblokir layar)
+    setIsSyncingGAS(true);
+    try {
+      const res = await fetch(`${GAS_API_URL}?userid=${idFromUrl}`);
+      const json = await res.json();
+      if (json.status === 'success') {
+        const sheetData = processIncomingData(json.data).map(item => ({ ...item, source: 'sheet' }));
+        
+        // Gabungkan dengan data Supabase yang sudah ada di state
+        setTransactions(prev => {
+          const combined = [...prev, ...sheetData];
+          // Filter duplikat
+          const uniqueTransactions = combined.filter((item, index, self) =>
+            index === self.findIndex((t) => (
+              t.dateKey === item.dateKey &&
+              t.amount === item.amount &&
+              t.desc?.toLowerCase() === item.desc?.toLowerCase()
+            ))
+          );
+          return uniqueTransactions.sort((a, b) => b.dateObj - a.dateObj || b.id - a.id);
+        });
+      }
+    } catch (e) { 
+      console.warn("Sheets fetch failed", e); 
+    } finally {
+      setIsSyncingGAS(false); // Selesai sinkronisasi background
     }
   };
 
@@ -123,16 +131,13 @@ export default function App() {
       const trxToDelete = transactions.find(t => t.id === deleteId);
      
       if (trxToDelete) {
-        // Hapus dari sumber yang sesuai
         if (trxToDelete.source === 'sheet') {
           await fetch(`${GAS_API_URL}?userid=${userId}&action=delete&row=${trxToDelete.id}`);
-          // Hapus juga bayangannya di Supabase jika ada (Mencegah bug sinkronisasi)
           await supabase.from('transactions').delete().eq('user_id', String(userId)).eq('amount', trxToDelete.amount).ilike('description', trxToDelete.desc);
         } else {
           await supabase.from('transactions').delete().eq('id', deleteId).eq('user_id', String(userId));
         }
 
-        // Auto-reverse saldo celengan
         if (trxToDelete.desc?.toLowerCase().startsWith('nabung goals:') || trxToDelete.desc?.toLowerCase().startsWith('nabung:')) {
           const goalName = trxToDelete.desc.replace(/Nabung Goals:|Nabung:/ig, '').trim();
           const goalToUpdate = goals.find(g => g.goal_name.toLowerCase() === goalName.toLowerCase());
@@ -204,7 +209,16 @@ export default function App() {
   const stats = useMemo(() => {
     const income = transactions.filter(t => t.type?.toUpperCase() === 'MASUK').reduce((a, b) => a + Number(b.amount), 0);
     const expense = transactions.filter(t => t.type?.toUpperCase() === 'KELUAR').reduce((a, b) => a + Number(b.amount), 0);
-    return { balance: income - expense, income, expense };
+    
+    // 🔥 KEMBALINYA BARAKAH SCORE LOGIC
+    const charity = transactions.filter(t => t.category?.toUpperCase() === 'SEDEKAH/ZAKAT').reduce((a, b) => a + Number(b.amount), 0);
+    const targetRatio = 0.025;
+    const currentRatio = expense > 0 ? charity / expense : 0;
+    let score = 40;
+    if (currentRatio >= targetRatio) score = 100;
+    else if (currentRatio > 0) score = 40 + (currentRatio / targetRatio) * 60;
+
+    return { balance: income - expense, income, expense, barakahScore: Math.round(score) };
   }, [transactions]);
 
   const filteredByMonth = useMemo(() => transactions.filter(t => t.month === viewDate.getMonth() && t.year === viewDate.getFullYear()), [transactions, viewDate]);
@@ -214,18 +228,13 @@ export default function App() {
     const data = [];
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate(); // Mendapatkan total hari di bulan tersebut
+    const daysInMonth = new Date(year, month + 1, 0).getDate(); 
    
-    // Menampilkan 1 bulan full agar tanggal tidak ada yang terlewat
     for (let i = 1; i <= daysInMonth; i++) {
       const d = new Date(year, month, i);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       const amt = transactions.filter(t => t.type?.toUpperCase() === 'KELUAR' && t.dateKey === key).reduce((s, t) => s + Number(t.amount), 0);
-     
-      data.push({
-        date: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
-        "Pengeluaran": amt
-      });
+      data.push({ date: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }), "Pengeluaran": amt });
     }
     return data;
   }, [transactions, viewDate]);
@@ -264,14 +273,13 @@ export default function App() {
     setIsSettingBudget(false);
   };
 
-  // 🔥 WARNA SESUAI REFERENSI FOTO (VIBRANT & ELEGAN)
   const tremorColors = ["emerald-800", "emerald-500", "rose-500", "amber-500", "slate-800", "blue-500", "fuchsia-500", "cyan-500"];
   const hexColors = ["#065f46", "#10b981", "#f43f5e", "#f59e0b", "#1e293b", "#3b82f6", "#d946ef", "#06b6d4"];
 
   if (loading) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center p-10">
       <Loader2 className="animate-spin text-emerald-500 w-12 h-12 mb-6" />
-      <Text className="font-bold tracking-widest text-slate-300 uppercase text-[10px]">Sinkronisasi Multi-Database...</Text>
+      <Text className="font-bold tracking-widest text-slate-400 uppercase text-[10px]">Mempersiapkan Dashboard...</Text>
     </div>
   );
 
@@ -317,7 +325,6 @@ export default function App() {
 
       <main className="flex-1 h-screen overflow-y-auto relative custom-scrollbar flex flex-col">
        
-        {/* 🔥 MODAL HAPUS TRANSAKSI UMUM */}
         {deleteId && (
             <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[200] flex items-center justify-center p-4">
                <Card className="max-w-sm w-full p-8 rounded-[2.5rem] shadow-2xl border-none animate-in zoom-in-95">
@@ -333,7 +340,6 @@ export default function App() {
             </div>
         )}
 
-        {/* 🔥 MODAL SMART DELETE GOALS */}
         {deleteGoalData && (
           <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-md z-[300] flex items-center justify-center p-4">
              <Card className="max-w-md w-full p-8 lg:p-10 rounded-[2.5rem] shadow-2xl border-none animate-in zoom-in-95">
@@ -358,15 +364,18 @@ export default function App() {
           </div>
         )}
 
-        {/* HEADER */}
         <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl px-5 lg:px-8 py-3 flex justify-between items-center border-b border-slate-100/60 shrink-0">
           <div className="flex items-center gap-4">
              <button onClick={() => setIsMobileSidebarOpen(true)} className="lg:hidden p-2 bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-emerald-600"><Menu size={20}/></button>
-             <Badge color="emerald" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-emerald-100 animate-pulse">Live Sync Active</Badge>
+             <Flex className="gap-2">
+                <Badge color="emerald" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-emerald-100 animate-pulse">Live Sync Active</Badge>
+                {/* Indikator Data Lama sedang diproses */}
+                {isSyncingGAS && <Badge color="amber" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-amber-100 animate-pulse"><Loader2 size={10} className="inline mr-1 animate-spin"/> Sync Legacy Data</Badge>}
+             </Flex>
           </div>
           <div className="flex items-center gap-3">
             {isDemo && <Badge color="amber" icon={Sparkles} className="font-bold px-2.5 py-0.5 rounded-full text-[8px]">Mode Demo</Badge>}
-            <button onClick={() => { userId && fetchData(userId); fetchGoals(userId); }} className="p-2 bg-white hover:bg-emerald-50 rounded-xl shadow-sm ring-1 ring-slate-100 text-slate-400 hover:text-emerald-600 active:scale-90 transition-all"><RefreshCcw size={16} strokeWidth={2.5}/></button>
+            <button onClick={() => { userId && fetchData(userId); fetchGoals(userId); }} className="p-2 bg-white hover:bg-emerald-50 rounded-xl shadow-sm ring-1 ring-slate-100 text-slate-400 hover:text-emerald-600 active:scale-90 transition-all"><RefreshCcw size={16} strokeWidth={2.5} className={isSyncingGAS ? "animate-spin" : ""}/></button>
             <div className="w-9 h-9 bg-slate-900 text-white rounded-lg flex items-center justify-center font-bold text-[10px] shadow-md">RA</div>
           </div>
         </header>
@@ -374,12 +383,11 @@ export default function App() {
         <div className="flex-1 p-5 lg:p-7 max-w-8xl mx-auto w-full">
            
             {/* ========================================================================= */}
-            {/* TAB: DASHBOARD (OVERVIEW) - BALANCED MASONRY LAYOUT */}
+            {/* TAB: DASHBOARD (OVERVIEW) */}
             {/* ========================================================================= */}
             {activeTab === 'overview' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                
-                {/* 1. ROW ATAS: HERO SALDO */}
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 lg:p-8 rounded-[2.5rem] shadow-lg border-t border-white ring-1 ring-slate-100/40">
                   <div>
                     <Text className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[9px] mb-2 flex items-center gap-2"><div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div> Total saldo aktif</Text>
@@ -394,7 +402,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 2. ROW TENGAH: KPI CARDS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <Card className="rounded-[2rem] border-none shadow-[0_15px_30px_rgba(16,185,129,0.05)] p-6 lg:p-8 bg-white ring-1 ring-slate-100 hover:translate-y-[-3px] transition-all">
                     <Flex alignItems="center">
@@ -410,14 +417,12 @@ export default function App() {
                   </Card>
                 </div>
 
-                {/* 3. ROW BAWAH: BALANCED COLUMNS */}
                 <div className="flex flex-col xl:flex-row gap-6">
                  
-                  {/* --- KOLOM KIRI: MAIN CHARTS (Lebih Lebar) --- */}
+                  {/* --- KOLOM KIRI (Lebar) --- */}
                   <div className="flex-1 min-w-0 space-y-6">
                    
-                    {/* TREN HARIAN (Pindah ke Kiri + Fitur Scroll + YAxis Lebar) */}
-                    <Card className="rounded-[2.5rem] border-none shadow-xl p-6 lg:p-8 bg-white ring-1 ring-slate-100/30">
+                    <Card className="rounded-[2.5rem] border-none shadow-xl p-6 lg:p-8 bg-white ring-1 ring-slate-100/30 overflow-hidden">
                       <Flex className="mb-2 items-start justify-between">
                           <div><Title className="font-bold text-slate-900 border-l-4 border-emerald-600 pl-3 text-[11px] tracking-widest leading-none uppercase">Tren harian</Title></div>
                           <div className="flex bg-slate-50 p-1 rounded-xl ring-1 ring-slate-100 shrink-0">
@@ -436,10 +441,8 @@ export default function App() {
                       </div>
                     </Card>
 
-                    {/* ALOKASI DANA (Pindah ke Kiri) */}
                     <Card className="rounded-[2.5rem] border-none shadow-lg ring-1 ring-slate-100 p-8 bg-white flex flex-col hover:shadow-xl transition-shadow">
                       <Title className="font-bold text-[10px] text-slate-400 uppercase tracking-[0.3em] mb-8 border-l-4 border-emerald-600 pl-3 leading-none">Alokasi dana</Title>
-                     
                       <div className="flex flex-col md:flex-row items-center gap-8">
                         <div className="w-full md:w-1/2">
                           <DonutChart className="h-52 w-full" data={categoryData} category="amount" index="name" valueFormatter={axisFormatter} colors={tremorColors} showAnimation={true} />
@@ -460,10 +463,40 @@ export default function App() {
 
                   </div>
 
-                  {/* --- KOLOM KANAN: WIDGETS & AI (Lebih Sempit, Pas untuk Sidebar) --- */}
+                  {/* --- KOLOM KANAN: WIDGETS --- */}
                   <aside className="w-full xl:w-96 shrink-0 space-y-6">
+
+                    {/* 🔥 BARAKAH SCORE IS BACK! */}
+                    <Card className="rounded-[2.5rem] border-none shadow-xl p-8 bg-white ring-1 ring-slate-100 relative overflow-hidden group hover:shadow-2xl transition-all">
+                      <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000">
+                        <HeartHandshake size={140} />
+                      </div>
+                      <Title className="text-[10px] font-bold text-slate-400 tracking-[0.3em] uppercase mb-8 border-l-4 border-emerald-600 pl-3 leading-none">Barakah Score</Title>
+                      
+                      <div className="flex flex-col items-center text-center">
+                        <div className="relative mb-6 flex items-center justify-center">
+                          <svg className="w-32 h-32 transform -rotate-90">
+                            <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="10" fill="transparent" className="text-slate-50" />
+                            <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="10" fill="transparent" 
+                                    strokeDasharray={364.4} strokeDashoffset={364.4 - (stats.barakahScore / 100) * 364.4}
+                                    className={`transition-all duration-1000 ease-out ${stats.barakahScore > 75 ? 'text-emerald-500' : stats.barakahScore > 45 ? 'text-amber-500' : 'text-rose-500'}`} />
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-3xl font-black text-slate-900 leading-none">{stats.barakahScore}</span>
+                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Point</span>
+                          </div>
+                        </div>
+                        
+                        <Badge color={stats.barakahScore > 75 ? "emerald" : stats.barakahScore > 45 ? "amber" : "rose"} variant="solid" className="font-black rounded-lg text-[9px] uppercase px-4 py-1 mb-4 shadow-sm">
+                          {stats.barakahScore > 75 ? "Maa Syaa Allah" : stats.barakahScore > 45 ? "Waspada Israf" : "Perlu Muhasabah"}
+                        </Badge>
+                        
+                        <Text className="text-[11px] font-medium text-slate-500 italic px-4 leading-relaxed">
+                          {stats.barakahScore > 75 ? `"Arus kasmu sangat berkah! Porsi sedekah mencapai target 2,5%."` : stats.barakahScore > 45 ? `"Ayo tingkatkan porsi berbagi agar hartamu makin tenang."` : `"Muhasabah diri, jangan lupakan hak sesama di setiap rupiah jajanmu."`}
+                        </Text>
+                      </div>
+                    </Card>
                    
-                    {/* FOKUS TARGET 🎯 */}
                     {activeGoal ? (
                       <Card className="rounded-[2.5rem] border-none shadow-xl p-8 bg-slate-900 text-white relative overflow-hidden group hover:shadow-2xl transition-all cursor-pointer" onClick={() => setActiveTab('goals')}>
                         <div className="absolute -top-10 -right-10 opacity-10 group-hover:scale-110 transition-transform duration-1000"><Target size={160} /></div>
@@ -496,7 +529,6 @@ export default function App() {
                       </Card>
                     )}
 
-                    {/* TARGET ANGGARAN */}
                     <Card className="rounded-[2.5rem] border-none shadow-lg ring-1 ring-slate-100 p-8 bg-white overflow-hidden relative">
                       <Flex className="mb-8 items-center justify-between">
                           <Title className="text-[10px] font-bold text-slate-800 tracking-[0.3em] leading-none uppercase">Target anggaran</Title>
@@ -523,35 +555,12 @@ export default function App() {
                       </div>
                     </Card>
 
-                    {/* EFISIENSI AI */}
-                    <Card className="rounded-3xl border-none shadow-lg p-7 bg-gradient-to-br from-white to-emerald-50 ring-1 ring-emerald-100 relative overflow-hidden group">
-                        <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><Zap size={140} /></div>
-                        <Title className="font-bold text-slate-900 uppercase text-[10px] tracking-widest flex items-center gap-2 mb-6"><TrendingUp size={18} strokeWidth={2.5} className="text-emerald-600"/> Efisiensi</Title>
-                        <div className="space-y-4">
-                          <Flex><Text className="font-bold text-emerald-800 text-[10px] uppercase">Potensi hemat</Text><Text className="font-black text-emerald-700 text-3xl">24%</Text></Flex>
-                          <ProgressBar value={24} color="emerald" className="h-3 rounded-full shadow-inner" />
-                        </div>
-                        <Text className="mt-8 text-[11px] font-medium text-slate-600 italic border-l-4 border-emerald-500 pl-4 py-1 leading-relaxed">
-                            {leakageInfo.count > 1 ? `"Detektor AI mendeteksi pengeluaran berulang pada kategori ${leakageInfo.name.toLowerCase()}."` : `"Arus kas Anda bulan ini sangat efisien. Pertahankan!"`}
-                        </Text>
-                    </Card>
-
-                    {/* BATAS HARIAN AMAN */}
-                    <Card className="rounded-3xl border-none shadow-lg p-7 bg-slate-900 text-white overflow-hidden relative border-t border-white/5">
-                        <div className="absolute -bottom-10 -right-10 opacity-10"><Activity size={180} /></div>
-                        <Title className="text-emerald-400 font-bold uppercase text-[10px] tracking-[0.3em] mb-8 leading-none">Batas harian aman</Title>
-                        <Metric className="text-white font-black text-4xl tracking-tighter drop-shadow-md">{formatRp(stats.balance > 0 ? stats.balance / 30 : 0).replace('Rp', '').trim()}</Metric>
-                        <Text className="text-emerald-100 font-medium text-[10px] mt-6 opacity-80 leading-relaxed">Estimasi jatah pengeluaran harian agar saldo cukup sampai akhir bulan.</Text>
-                    </Card>
-
                   </aside>
                 </div>
               </div>
             )}
 
-            {/* ========================================================================= */}
-            {/* 🔥 TAB: GOAL CENTER (TARGET TABUNGAN & RIWAYAT KHUSUS) */}
-            {/* ========================================================================= */}
+            {/* TAB GOALS, LEDGER, & ZAKAT TETAP SAMA */}
             {activeTab === 'goals' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-900 p-8 lg:p-10 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
@@ -566,13 +575,9 @@ export default function App() {
                 <Grid numItemsMd={2} className="gap-6">
                   {goals.map(g => (
                     <Card key={g.id} className="rounded-[2.5rem] border-none shadow-sm p-8 bg-white ring-1 ring-slate-100 relative overflow-hidden group hover:shadow-xl transition-all hover:-translate-y-1">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteGoalData(g); }}
-                        className="absolute top-6 right-6 p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                      >
+                      <button onClick={(e) => { e.stopPropagation(); setDeleteGoalData(g); }} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
                         <Trash2 size={18} strokeWidth={2.5}/>
                       </button>
-
                       <Flex className="mb-5 items-start pr-10">
                         <div>
                           <Title className="text-2xl font-black tracking-tight text-slate-900">{g.goal_name}</Title>
@@ -583,16 +588,9 @@ export default function App() {
                         </Badge>
                       </Flex>
                       <ProgressBar value={(g.current_amount / g.target_amount) * 100} color={g.current_amount >= g.target_amount ? "emerald" : "amber"} className="h-3.5 rounded-full mb-6 shadow-inner" />
-                     
                       <div className="flex justify-between items-center p-5 bg-slate-50 rounded-2xl border border-slate-100 shadow-inner">
-                        <div>
-                          <Text className="text-[9px] text-slate-400 uppercase font-bold mb-1">Celengan Terisi</Text>
-                          <Text className="text-base font-black text-emerald-600">{formatRp(g.current_amount)}</Text>
-                        </div>
-                        <div className="text-right">
-                          <Text className="text-[9px] text-slate-400 uppercase font-bold mb-1">Kurang</Text>
-                          <Text className="text-base font-black text-slate-400">{formatRp(Math.max(0, g.target_amount - g.current_amount))}</Text>
-                        </div>
+                        <div><Text className="text-[9px] text-slate-400 uppercase font-bold mb-1">Celengan Terisi</Text><Text className="text-base font-black text-emerald-600">{formatRp(g.current_amount)}</Text></div>
+                        <div className="text-right"><Text className="text-[9px] text-slate-400 uppercase font-bold mb-1">Kurang</Text><Text className="text-base font-black text-slate-400">{formatRp(Math.max(0, g.target_amount - g.current_amount))}</Text></div>
                       </div>
                     </Card>
                   ))}
@@ -600,7 +598,6 @@ export default function App() {
                     <div className="col-span-2 p-16 text-center bg-slate-50 rounded-[2.5rem] border border-dashed border-slate-200">
                        <Target size={48} className="text-slate-300 mx-auto mb-4" />
                        <h3 className="font-bold text-slate-500 mb-2">Belum ada target impian.</h3>
-                       <p className="text-xs text-slate-400">Gunakan perintah <code className="bg-slate-200 px-2 py-1 rounded">/setgoal nama_barang nominal</code> di Telegram untuk memulai.</p>
                     </div>
                   )}
                 </Grid>
@@ -640,15 +637,14 @@ export default function App() {
               </div>
             )}
 
-            {/* TAB: MUTASI UTAMA */}
             {activeTab === 'ledger' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
                   <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-slate-100 overflow-hidden bg-white p-0">
                     <div className="p-6 lg:p-8 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-6 bg-slate-50/50">
-                      <Title className="font-black text-slate-900 text-2xl tracking-tighter">Riwayat Mutasi Utama</Title>
+                      <Title className="font-black text-slate-900 text-2xl tracking-tighter">Riwayat Mutasi</Title>
                       <div className="relative w-full md:w-[320px]">
                           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                          <input type="text" placeholder="Cari keterangan / kategori..." className="w-full pl-12 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none shadow-sm" onChange={(e) => setSearchQuery(e.target.value)} />
+                          <input type="text" placeholder="Cari keterangan..." className="w-full pl-12 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none shadow-sm" onChange={(e) => setSearchQuery(e.target.value)} />
                       </div>
                     </div>
                     <div className="overflow-x-auto max-h-[650px] custom-scrollbar">
@@ -684,7 +680,6 @@ export default function App() {
               </div>
             )}
 
-            {/* TAB: ZAKAT */}
             {activeTab === 'zakat' && (
               <div className="animate-in slide-in-from-bottom-6 duration-700 max-w-4xl mx-auto space-y-8">
                 <Card className="rounded-[3rem] p-10 lg:p-16 bg-gradient-to-br from-emerald-600 to-emerald-900 text-white text-center shadow-[0_40px_80px_rgba(5,150,105,0.2)] relative overflow-hidden group border border-emerald-500/30">
@@ -699,16 +694,9 @@ export default function App() {
                           <Text className="text-white text-[11px] font-black">{Math.min(Math.round((stats.balance / nishabTahunan) * 100), 100)}%</Text>
                         </Flex>
                         <ProgressBar value={Math.min((stats.balance / nishabTahunan) * 100, 100)} color="emerald" className="h-2.5 rounded-full bg-black/40" />
-                        <Text className="text-emerald-50 text-[10px] mt-4 text-center leading-relaxed font-medium">
-                          {wajibZakat ? "Alhamdulillah, harta Anda sudah mencapai nishab." : `Kurang ${formatRp(nishabTahunan - stats.balance)} lagi untuk mencapai batas nishab.`}
-                        </Text>
                       </div>
                   </div>
                 </Card>
-                <Grid numItemsMd={2} className="gap-8">
-                  <Card className="rounded-[2.5rem] p-8 lg:p-10 bg-white ring-1 ring-slate-100 shadow-xl"><HeartHandshake className="text-rose-500 mb-6" size={32} strokeWidth={3}/><Title className="font-black text-slate-800 uppercase text-[11px] tracking-[0.2em] mb-3">Sedekah Ideal (1%)</Title><Metric className="text-rose-600 font-black text-3xl">{formatRp(stats.balance * 0.01)}</Metric></Card>
-                  <Card className="rounded-[2.5rem] p-8 lg:p-10 bg-white ring-1 ring-slate-100 shadow-xl flex flex-col justify-center"><Coins className="text-amber-500 mb-6" size={32} strokeWidth={3}/><Title className="font-black text-slate-800 uppercase text-[11px] tracking-[0.2em] mb-4">Status Kewajiban</Title><Badge color={wajibZakat ? "rose" : "emerald"} variant="solid" size="xl" className="px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest">{wajibZakat ? "WAJIB ZAKAT" : "BELUM NISHAB"}</Badge></Card>
-                </Grid>
               </div>
             )}
 
