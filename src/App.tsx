@@ -8,7 +8,8 @@ import {
   Coins, HeartHandshake, ArrowUpRight, ArrowDownRight, Zap,
   ChevronRight, ChevronLeft, Calendar, Menu, Settings, LogOut,
   Sparkles, BarChart3, TrendingUp, LineChart as LineChartIcon,
-  Bot, MessageSquare, Download, Palette, Share2, Camera
+  Bot, MessageSquare, Download, Palette, Share2, Camera,
+  Trophy, ShieldCheck, Crown, Award // 🔥 Import Icon untuk Gamifikasi Badges
 } from 'lucide-react';
 
 import {
@@ -17,8 +18,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.7 - MoM ANALYTICS)
- * Fix: Menambahkan Analisis Komparasi Antar Bulan (Month-over-Month).
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.8 - GAMIFICATION BADGES)
+ * Fix: Menambahkan Sistem Lencana (Badges) Universal untuk memacu kedisiplinan user.
  */
 
 // 🔥 1. SETUP KONEKSI DUA SUMBER DATA
@@ -403,7 +404,6 @@ export default function App() {
   const totalKeluarBulanTerpilih = useMemo(() => filteredByMonth.filter(tx => tx.type?.toUpperCase() === 'KELUAR').reduce((a, b) => a + Number(b.amount), 0), [filteredByMonth]);
   const totalMasukBulanTerpilih = useMemo(() => filteredByMonth.filter(tx => tx.type?.toUpperCase() === 'MASUK').reduce((a, b) => a + Number(b.amount), 0), [filteredByMonth]);
 
-  // 🔥 LOGIKA BARU: KOMPARASI ANTAR BULAN (Month-over-Month)
   const previousMonthTotalKeluar = useMemo(() => {
     const prevDate = new Date(viewDate);
     prevDate.setMonth(prevDate.getMonth() - 1);
@@ -565,6 +565,19 @@ export default function App() {
     return { title: "👀 GW PANTAU LU!", message: `Tumben dompet lu aman bulan ini. Tapi awas aja kalau besok lu foya-foya lagi, gw omelin lu!`, theme: styles.emerald };
   }, [totalKeluarBulanTerpilih, monthlyBudget, categoryData, filteredByMonth, activeGoal]);
 
+  // 🔥 LOGIKA GAMIFIKASI (PENCAPAIAN/BADGES)
+  const isPhilanthropist = barakahScore >= 100;
+  const isBudgetNinja = monthlyBudget > 0 && totalKeluarBulanTerpilih <= (monthlyBudget * 0.75) && totalKeluarBulanTerpilih > 0;
+  const isGoalAchiever = goals.some(g => g.current_amount >= g.target_amount && g.target_amount > 0);
+  const isCashflowKing = totalMasukBulanTerpilih > 0 && totalMasukBulanTerpilih >= (totalKeluarBulanTerpilih * 1.2);
+
+  const userBadges = [
+    { id: 'phil', name: 'Philanthropist', desc: 'Sedekah Maksimal', icon: Award, active: isPhilanthropist, color: 'text-rose-500', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
+    { id: 'ninja', name: 'Budget Ninja', desc: 'Sangat Hemat', icon: ShieldCheck, active: isBudgetNinja, color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+    { id: 'goal', name: 'Goal Achiever', desc: 'Target Tercapai', icon: Trophy, active: isGoalAchiever, color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+    { id: 'king', name: 'Cashflow King', desc: 'Surplus Pemasukan', icon: Crown, active: isCashflowKing, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20' }
+  ];
+
   // =========================================================================
   // RENDER LANDING PAGE JUALAN
   // =========================================================================
@@ -583,7 +596,7 @@ export default function App() {
         </nav>
         
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 max-w-4xl mx-auto relative z-10">
-          <Badge className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}>✨ Tersedia Versi 29.7 (MoM Analytics)</Badge>
+          <Badge className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}>✨ Tersedia Versi 29.8 (Gamifikasi User)</Badge>
           
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.1]">
             Catat Keuangan <br className="hidden md:block"/>
@@ -979,6 +992,23 @@ export default function App() {
                         >
                           <Share2 className="w-4 h-4" /> Pamerkan ke IG Story
                         </button>
+                      </div>
+                    </Card>
+
+                    {/* 🔥 FITUR BARU: GAMIFIKASI BADGES */}
+                    <Card className={`rounded-[2.5rem] border-none shadow-lg ring-1 p-8 overflow-hidden relative transition-colors duration-500 ${t.cardBg} ${t.border}`}>
+                      <Flex className="mb-6 items-center justify-between">
+                          <Title className={`text-[10px] font-bold tracking-[0.3em] leading-none uppercase ${t.textMain}`}>Pencapaian Bulan Ini</Title>
+                          <Trophy size={16} className={t.textSub} />
+                      </Flex>
+                      <div className="grid grid-cols-2 gap-4">
+                         {userBadges.map(b => (
+                            <div key={b.id} className={`flex flex-col items-center text-center p-4 rounded-2xl border transition-all duration-500 ${b.active ? `${b.bg} ${b.border} shadow-sm transform hover:scale-105` : `${t.bgSoft} border-transparent opacity-50 grayscale`}`}>
+                               <b.icon size={28} strokeWidth={2.5} className={`mb-2 ${b.active ? b.color : t.textSub}`} />
+                               <p className={`text-[9px] font-black uppercase tracking-widest leading-tight mb-1 ${b.active ? t.textMain : t.textSub}`}>{b.name}</p>
+                               <p className={`text-[8px] font-bold ${t.textSub}`}>{b.desc}</p>
+                            </div>
+                         ))}
                       </div>
                     </Card>
                    
