@@ -343,7 +343,7 @@ export default function App() {
           
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
             <button onClick={() => window.open('https://lynk.id/rizkiakbarma', '_blank')} className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 group">
-              Dapatkan Akses (Rp 49k) <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"/>
+              Dapatkan Akses <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"/>
             </button>
             <button onClick={startDemo} className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-sm border border-slate-200 flex items-center justify-center gap-2">
               Lihat Demo Dashboard
