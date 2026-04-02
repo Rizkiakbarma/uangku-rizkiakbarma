@@ -17,8 +17,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.3 - THEME ENGINE FIX)
- * Fix: Memperbaiki Bug "White Screen" dengan menambahkan chartColors dan chartHex ke dalam kamus Tema.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.4 - EXTENDED THEME ENGINE)
+ * Fix: Menambahkan Tema Rainbow (Mejikuhibiniu), Vintage, dan Modern Minimalist.
  */
 
 // 🔥 1. SETUP KONEKSI DUA SUMBER DATA
@@ -34,7 +34,7 @@ const DUMMY_DATA = [
   { id: 994, date: new Date(), amount: 100000, type: 'KELUAR', category: 'SEDEKAH/ZAKAT', desc: 'Infaq Jumat' },
 ];
 
-// 🔥 KONFIGURASI TEMA (THEME ENGINE)
+// 🔥 KONFIGURASI TEMA (THEME ENGINE - 6 TEMAS)
 const THEMES = {
   emerald: {
     id: 'emerald',
@@ -62,7 +62,6 @@ const THEMES = {
     darkCardBg: 'bg-slate-900',
     accentDark: 'text-emerald-400',
     hexBg: '#FCFCFC',
-    // Perbaikan: Tambahkan properti warna chart di setiap tema
     chartColors: ["emerald-800", "emerald-500", "rose-500", "amber-500", "slate-800", "blue-500", "fuchsia-500", "cyan-500"],
     chartHex: ["#065f46", "#10b981", "#f43f5e", "#f59e0b", "#1e293b", "#3b82f6", "#d946ef", "#06b6d4"]
   },
@@ -123,12 +122,99 @@ const THEMES = {
     hexBg: '#fdf2f8',
     chartColors: ["rose-800", "rose-400", "emerald-400", "amber-400", "slate-800", "blue-400", "fuchsia-400", "cyan-400"],
     chartHex: ["#9f1239", "#fb7185", "#34d399", "#fbbf24", "#1e293b", "#60a5fa", "#e879f9", "#22d3ee"]
+  },
+  rainbow: { // 🌈 TEMA BARU: PASTEL MEJIKUHIBINIU
+    id: 'rainbow',
+    bg: 'bg-slate-50',
+    cardBg: 'bg-white',
+    bgSoft: 'bg-indigo-50/50',
+    textMain: 'text-slate-800',
+    textSub: 'text-slate-500',
+    border: 'border-indigo-100',
+    primary: 'bg-indigo-400',
+    primaryHover: 'hover:bg-indigo-500',
+    primaryText: 'text-indigo-500',
+    primaryLight: 'bg-indigo-50',
+    primaryBorder: 'border-indigo-400',
+    chartMain: 'indigo',
+    activeTab: 'bg-indigo-400 text-white shadow-[0_8px_16px_rgba(129,140,248,0.2)]',
+    inactiveTab: 'text-slate-500 hover:bg-indigo-50',
+    headerBg: 'bg-slate-50/80',
+    primaryGradient: 'from-rose-400 via-purple-400 to-blue-400',
+    gradientText: 'from-rose-400 via-amber-400 to-indigo-400',
+    borderFocus: 'focus:border-indigo-400 focus:ring-indigo-100',
+    tableHead: 'bg-slate-800 text-slate-300',
+    divide: 'divide-indigo-50/50',
+    selectionColor: 'selection:bg-indigo-100',
+    darkCardBg: 'bg-slate-900',
+    accentDark: 'text-indigo-300',
+    hexBg: '#f8fafc',
+    chartColors: ["rose-400", "orange-400", "amber-400", "emerald-400", "cyan-400", "blue-400", "indigo-400", "fuchsia-400"],
+    chartHex: ["#fb7185", "#fb923c", "#fbbf24", "#34d399", "#22d3ee", "#60a5fa", "#818cf8", "#e879f9"]
+  },
+  vintage: { // 🕰️ TEMA BARU: VINTAGE / RETRO WARMTH
+    id: 'vintage',
+    bg: 'bg-stone-100',
+    cardBg: 'bg-stone-50',
+    bgSoft: 'bg-stone-200/50',
+    textMain: 'text-stone-800',
+    textSub: 'text-stone-500',
+    border: 'border-stone-200',
+    primary: 'bg-amber-700',
+    primaryHover: 'hover:bg-amber-800',
+    primaryText: 'text-amber-800',
+    primaryLight: 'bg-amber-100',
+    primaryBorder: 'border-amber-700',
+    chartMain: 'amber',
+    activeTab: 'bg-amber-700 text-amber-50 shadow-[0_8px_16px_rgba(180,83,9,0.15)]',
+    inactiveTab: 'text-stone-500 hover:bg-stone-200/50',
+    headerBg: 'bg-stone-100/80',
+    primaryGradient: 'from-amber-700 to-orange-900',
+    gradientText: 'from-amber-700 to-orange-600',
+    borderFocus: 'focus:border-amber-700 focus:ring-amber-200',
+    tableHead: 'bg-stone-800 text-stone-300',
+    divide: 'divide-stone-200',
+    selectionColor: 'selection:bg-amber-200',
+    darkCardBg: 'bg-stone-800',
+    accentDark: 'text-amber-400',
+    hexBg: '#f5f5f4',
+    chartColors: ["amber-800", "orange-700", "stone-600", "yellow-600", "red-800", "amber-600", "stone-500", "orange-800"],
+    chartHex: ["#92400e", "#c2410c", "#57534e", "#ca8a04", "#991b1b", "#d97706", "#78716c", "#9a3412"]
+  },
+  modern: { // 🕶️ TEMA BARU: MODERN MONOCHROME
+    id: 'modern',
+    bg: 'bg-zinc-50',
+    cardBg: 'bg-white',
+    bgSoft: 'bg-zinc-100',
+    textMain: 'text-zinc-950',
+    textSub: 'text-zinc-500',
+    border: 'border-zinc-200',
+    primary: 'bg-zinc-900',
+    primaryHover: 'hover:bg-zinc-800',
+    primaryText: 'text-zinc-900',
+    primaryLight: 'bg-zinc-100',
+    primaryBorder: 'border-zinc-900',
+    chartMain: 'zinc',
+    activeTab: 'bg-zinc-900 text-white shadow-[0_8px_16px_rgba(24,24,27,0.15)]',
+    inactiveTab: 'text-zinc-500 hover:bg-zinc-100',
+    headerBg: 'bg-zinc-50/80',
+    primaryGradient: 'from-zinc-800 to-zinc-950',
+    gradientText: 'from-zinc-700 to-zinc-900',
+    borderFocus: 'focus:border-zinc-900 focus:ring-zinc-200',
+    tableHead: 'bg-zinc-900 text-zinc-300',
+    divide: 'divide-zinc-100',
+    selectionColor: 'selection:bg-zinc-200',
+    darkCardBg: 'bg-zinc-900',
+    accentDark: 'text-zinc-300',
+    hexBg: '#fafafa',
+    chartColors: ["zinc-900", "zinc-700", "zinc-500", "zinc-400", "zinc-800", "zinc-600", "slate-900", "neutral-800"],
+    chartHex: ["#18181b", "#3f3f46", "#71717a", "#a1a1aa", "#27272a", "#52525b", "#0f172a", "#262626"]
   }
 };
 
 export default function App() {
   const [currentTheme, setCurrentTheme] = useState(localStorage.getItem('budgetin_theme') || 'emerald');
-  const t = THEMES[currentTheme]; 
+  const t = THEMES[currentTheme] || THEMES['emerald']; // Fallback aman
 
   const [activeTab, setActiveTab] = useState(localStorage.getItem('budgetin_last_tab') || 'overview');
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -419,7 +505,7 @@ export default function App() {
         </nav>
         
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 max-w-4xl mx-auto relative z-10">
-          <Badge className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}>✨ Tersedia Versi 29.3 (Theme Engine Stable)</Badge>
+          <Badge className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}>✨ Tersedia Versi 29.4 (Theme Engine Stable)</Badge>
           
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.1]">
             Catat Keuangan <br className="hidden md:block"/>
