@@ -8,7 +8,7 @@ import {
   Coins, HeartHandshake, ArrowUpRight, ArrowDownRight, Zap,
   ChevronRight, ChevronLeft, Calendar, Menu, Settings, LogOut,
   Sparkles, BarChart3, TrendingUp, LineChart as LineChartIcon,
-  Bot // 🔥 Import icon Bot untuk Neural Advisor
+  Bot, MessageSquare // 🔥 Import MessageSquare untuk icon Landing Page
 } from 'lucide-react';
 
 import {
@@ -17,8 +17,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V27.0 - ANGRY NEURAL ADVISOR)
- * Fix: Menambahkan Neural Advisor (Mode Roasting) di paling atas Dashboard tanpa merusak layout.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V28.0 - SAAS LANDING PAGE)
+ * Fix: Menambahkan Landing Page Jualan (Front-End) untuk pengunjung publik tanpa merusak Dashboard utama.
  */
 
 // 🔥 1. SETUP KONEKSI DUA SUMBER DATA
@@ -30,29 +30,35 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const DUMMY_DATA = [
   { id: 991, date: new Date(), amount: 15500000, type: 'MASUK', category: 'MASUK', desc: 'Gaji Bulanan (Contoh)' },
   { id: 992, date: new Date(), amount: 250000, type: 'KELUAR', category: 'Food and Beverages', desc: 'Makan Siang' },
+  { id: 993, date: new Date(), amount: 350000, type: 'KELUAR', category: 'Tagihan', desc: 'Internet Wifi' },
+  { id: 994, date: new Date(), amount: 100000, type: 'KELUAR', category: 'SEDEKAH/ZAKAT', desc: 'Infaq Jumat' },
 ];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState(localStorage.getItem('budgetin_last_tab') || 'overview');
-  const [transactions, setTransactions] = useState([]);
-  const [goals, setGoals] = useState([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [goals, setGoals] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [isSyncingGAS, setIsSyncingGAS] = useState(false);
-  const [error, setError] = useState(null);
-  const [userId, setUserId] = useState(null);
+  const [isSyncingGAS, setIsSyncingGAS] = useState(false); 
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
+  
+  // 🔥 STATE BARU UNTUK MENAMPILKAN LANDING PAGE JUALAN
+  const [showLanding, setShowLanding] = useState(false);
+
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
   const [isBarChart, setIsBarChart] = useState(true);
-  const [deleteId, setDeleteId] = useState(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteGoalData, setDeleteGoalData] = useState(null);
+  const [deleteGoalData, setDeleteGoalData] = useState<any | null>(null);
   const [isDeletingGoal, setIsDeletingGoal] = useState(false);
   const [monthlyBudget, setMonthlyBudget] = useState(5000000);
   const [isSettingBudget, setIsSettingBudget] = useState(false);
 
-  const processIncomingData = (rawList) => {
+  const processIncomingData = (rawList: any[]) => {
     return rawList.map((item) => {
       const d = new Date(item.date);
       return {
@@ -67,9 +73,8 @@ export default function App() {
     });
   };
 
-  const fetchData = async (idFromUrl) => {
+  const fetchData = async (idFromUrl: string) => {
     setLoading(true);
-    
     try {
       const { data } = await supabase.from('transactions').select('*').eq('user_id', String(idFromUrl));
       if (data) {
@@ -91,7 +96,6 @@ export default function App() {
       const json = await res.json();
       if (json.status === 'success') {
         const sheetData = processIncomingData(json.data).map(item => ({ ...item, source: 'sheet' }));
-        
         setTransactions(prev => {
           const combined = [...prev, ...sheetData];
           const uniqueTransactions = combined.filter((item, index, self) =>
@@ -111,7 +115,7 @@ export default function App() {
     }
   };
 
-  const fetchGoals = async (idFromUrl) => {
+  const fetchGoals = async (idFromUrl: string) => {
     try {
       const { data } = await supabase.from('goals').select('*').eq('user_id', String(idFromUrl)).order('created_at', { ascending: false });
       if (data) setGoals(data);
@@ -125,7 +129,6 @@ export default function App() {
    
     try {
       const trxToDelete = transactions.find(t => t.id === deleteId);
-     
       if (trxToDelete) {
         if (trxToDelete.source === 'sheet') {
           await fetch(`${GAS_API_URL}?userid=${userId}&action=delete&row=${trxToDelete.id}`);
@@ -144,14 +147,13 @@ export default function App() {
           }
         }
       }
-
       setDeleteId(null);
       fetchData(userId);
       fetchGoals(userId);
     } catch (err) { console.error(err); } finally { setIsDeleting(false); }
   };
 
-  const executeDeleteGoal = async (actionType) => {
+  const executeDeleteGoal = async (actionType: string) => {
     if (!deleteGoalData || !userId) return;
     setIsDeletingGoal(true);
     try {
@@ -170,7 +172,6 @@ export default function App() {
         }]);
         if (txError) throw txError;
       }
-
       setDeleteGoalData(null);
       fetchGoals(userId);
       if (actionType === 'refund') fetchData(userId);
@@ -184,9 +185,14 @@ export default function App() {
 
   useEffect(() => {
     const idFromUrl = new URLSearchParams(window.location.search).get('userid');
+    
+    // 🔥 JIKA TIDAK ADA ID, TAMPILKAN LANDING PAGE JUALAN
     if (!idFromUrl) {
-      setIsDemo(true); setTransactions(processIncomingData(DUMMY_DATA)); setLoading(false); return;
+      setShowLanding(true);
+      setLoading(false); 
+      return;
     }
+    
     setUserId(idFromUrl);
     fetchData(idFromUrl);
     fetchGoals(idFromUrl);
@@ -196,7 +202,15 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem('budgetin_last_tab', activeTab); }, [activeTab]);
 
-  const changeMonth = (offset) => {
+  // 🔥 FUNGSI UNTUK MEMULAI DEMO DARI LANDING PAGE
+  const startDemo = () => {
+    setShowLanding(false);
+    setIsDemo(true);
+    setTransactions(processIncomingData(DUMMY_DATA));
+    setLoading(false);
+  };
+
+  const changeMonth = (offset: number) => {
     const newDate = new Date(viewDate);
     newDate.setMonth(newDate.getMonth() + offset);
     setViewDate(newDate);
@@ -235,7 +249,7 @@ export default function App() {
   }, [transactions, viewDate]);
 
   const categoryData = useMemo(() => {
-    const cats = {};
+    const cats: any = {};
     filteredByMonth.filter(t => t.type?.toUpperCase() === 'KELUAR').forEach(t => {
       cats[t.category] = (cats[t.category] || 0) + Number(t.amount);
     });
@@ -243,7 +257,7 @@ export default function App() {
   }, [filteredByMonth]);
 
   const leakageInfo = useMemo(() => {
-    const counts = filteredByMonth.filter(t => t.type === 'KELUAR').reduce((acc, curr) => {
+    const counts: any = filteredByMonth.filter(t => t.type === 'KELUAR').reduce((acc: any, curr: any) => {
       acc[curr.category] = (acc[curr.category] || 0) + 1;
       return acc;
     }, {});
@@ -255,12 +269,12 @@ export default function App() {
   const nishabTahunan = 85 * emasHarga;
   const wajibZakat = stats.balance >= nishabTahunan;
 
-  const formatRp = (num) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
-  const axisFormatter = (num) => new Intl.NumberFormat('id-ID', { notation: 'compact', compactDisplay: 'short' }).format(num);
+  const formatRp = (num: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
+  const axisFormatter = (num: number) => new Intl.NumberFormat('id-ID', { notation: 'compact', compactDisplay: 'short' }).format(num);
 
   const activeGoal = goals.find(g => g.is_active) || goals[0];
 
-  const handleSaveBudget = (val) => {
+  const handleSaveBudget = (val: string) => {
     let newVal = parseInt(val);
     if (isNaN(newVal) || newVal < 0) newVal = 0;
     setMonthlyBudget(newVal);
@@ -268,13 +282,11 @@ export default function App() {
     setIsSettingBudget(false);
   };
 
-  // 🔥 LOGIKA NEURAL ADVISOR (MODE ROASTING)
   const advisorInsight = useMemo(() => {
     const budgetUsedPercent = monthlyBudget > 0 ? (totalKeluarBulanTerpilih / monthlyBudget) * 100 : 0;
     const topCategory = categoryData.length > 0 ? categoryData[0] : null;
     const charity = filteredByMonth.filter(t => t.category?.toUpperCase() === 'SEDEKAH/ZAKAT').reduce((a, b) => a + Number(b.amount), 0);
 
-    // Kumpulan styling untuk mode marah/aman
     const styles = {
       rose: { bg: "bg-rose-500/10 border-rose-500/20", iconBg: "bg-rose-500/20", textMain: "text-rose-500", textSub: "text-rose-400" },
       amber: { bg: "bg-amber-500/10 border-amber-500/20", iconBg: "bg-amber-500/20", textMain: "text-amber-500", textSub: "text-amber-400" },
@@ -283,52 +295,98 @@ export default function App() {
       emerald: { bg: "bg-emerald-500/10 border-emerald-500/20", iconBg: "bg-emerald-500/20", textMain: "text-emerald-500", textSub: "text-emerald-400" },
     };
 
-    // Prioritas 1: Kritis Limit Budget
     if (budgetUsedPercent > 85) {
-      return {
-        title: "🚨 STATUS DARURAT!",
-        message: `WOY! Budget bulanan lu udah kepake ${Math.round(budgetUsedPercent)}%! Mau makan promag lu di akhir bulan?! Puasa jajan di luar sekarang juga!`,
-        theme: styles.rose
-      };
+      return { title: "🚨 STATUS DARURAT!", message: `WOY! Budget bulanan lu udah kepake ${Math.round(budgetUsedPercent)}%! Mau makan promag lu di akhir bulan?! Puasa jajan di luar sekarang juga!`, theme: styles.rose };
     }
-    
-    // Prioritas 2: Gak pernah sedekah padahal jajan kenceng
     if (totalKeluarBulanTerpilih > 1000000 && charity === 0) {
-      return {
-        title: "🔥 PELIT AMAT!",
-        message: `Duit lu abis ${formatRp(totalKeluarBulanTerpilih)} bulan ini tapi sedekah NOL BESAR! Pantesan ngerasa duit lu cepet abis, gak ada berkahnya! Buruan sedekah!`,
-        theme: styles.amber
-      };
+      return { title: "🔥 PELIT AMAT!", message: `Duit lu abis ${formatRp(totalKeluarBulanTerpilih)} bulan ini tapi sedekah NOL BESAR! Pantesan ngerasa duit lu cepet abis, gak ada berkahnya! Buruan sedekah!`, theme: styles.amber };
     }
-
-    // Prioritas 3: Kebocoran spesifik
     if (topCategory && topCategory.amount > (monthlyBudget * 0.4)) {
-      return {
-        title: "🤬 KEBOCORAN DANA!",
-        message: `Buset dah! Duit lu ludes ${formatRp(topCategory.amount)} cuma buat ${topCategory.name} doang?! Lu nyari makan apa nyari pesugihan? Kurangin woy!`,
-        theme: styles.orange
-      };
+      return { title: "🤬 KEBOCORAN DANA!", message: `Buset dah! Duit lu ludes ${formatRp(topCategory.amount)} cuma buat ${topCategory.name} doang?! Lu nyari makan apa nyari pesugihan? Kurangin woy!`, theme: styles.orange };
     }
-
-    // Prioritas 4: Goal Kosong melompong
     if (activeGoal && activeGoal.current_amount === 0) {
-       return {
-         title: "🤡 HALUSINASI!",
-         message: `Gaya-gayaan bikin target pengen beli ${activeGoal.goal_name}, tapi celengan lu masih KOSONG! Kapan kebelinya kalau kerjanya wacana doang?! Nabung!`,
-         theme: styles.violet
-       };
+       return { title: "🤡 HALUSINASI!", message: `Gaya-gayaan bikin target pengen beli ${activeGoal.goal_name}, tapi celengan lu masih KOSONG! Kapan kebelinya kalau kerjanya wacana doang?! Nabung!`, theme: styles.violet };
     }
-
-    // Prioritas 5: Aman terkendali
-    return {
-      title: "👀 GW PANTAU LU!",
-      message: `Tumben dompet lu agak aman bulan ini. Saldo masih nyisa. Tapi awas aja kalau besok-besok lu scroll Shopee terus foya-foya lagi, gw omelin lu!`,
-      theme: styles.emerald
-    };
+    return { title: "👀 GW PANTAU LU!", message: `Tumben dompet lu agak aman bulan ini. Saldo masih nyisa. Tapi awas aja kalau besok-besok lu scroll Shopee terus foya-foya lagi, gw omelin lu!`, theme: styles.emerald };
   }, [totalKeluarBulanTerpilih, monthlyBudget, categoryData, filteredByMonth, activeGoal]);
 
   const tremorColors = ["emerald-800", "emerald-500", "rose-500", "amber-500", "slate-800", "blue-500", "fuchsia-500", "cyan-500"];
   const hexColors = ["#065f46", "#10b981", "#f43f5e", "#f59e0b", "#1e293b", "#3b82f6", "#d946ef", "#06b6d4"];
+
+  // =========================================================================
+  // 🔥 RENDER LANDING PAGE JUALAN (JIKA TIDAK ADA USER_ID)
+  // =========================================================================
+  if (showLanding) {
+    return (
+      <div className="min-h-screen bg-[#FCFCFC] font-sans text-slate-900 selection:bg-emerald-100 flex flex-col">
+        {/* Navbar Landing Page */}
+        <nav className="px-6 py-5 flex justify-between items-center max-w-7xl mx-auto w-full relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="bg-emerald-600 p-2.5 rounded-xl shadow-lg shadow-emerald-200"><Activity className="text-white w-5 h-5"/></div>
+            <span className="font-black tracking-tighter text-2xl uppercase">UangKu<span className="text-emerald-600">Pro</span></span>
+          </div>
+          <button onClick={() => window.open('https://lynk.id/rizkiakbarma', '_blank')} className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md">Beli Akses</button>
+        </nav>
+        
+        {/* Hero Section */}
+        <main className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 max-w-4xl mx-auto relative z-10">
+          <Badge color="emerald" variant="soft" className="mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border border-emerald-100">✨ Tersedia Versi 28.0 (SaaS Stable)</Badge>
+          
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-slate-900 mb-8 leading-[1.1]">
+            Catat Keuangan <br className="hidden md:block"/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-400">Semudah Kirim Chat.</span>
+          </h1>
+          
+          <p className="text-slate-500 text-base md:text-xl mb-12 max-w-2xl font-medium leading-relaxed">
+            Tinggalkan cara lama mencatat di Excel yang bikin malas. Kirim pengeluaranmu ke Bot Telegram UangKu, dan biarkan sistem menyusunnya ke dalam Dashboard Finansial kelas Enterprise secara otomatis.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+            <button onClick={() => window.open('https://lynk.id/rizkiakbarma', '_blank')} className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 group">
+              Dapatkan Akses (Rp 49k) <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"/>
+            </button>
+            <button onClick={startDemo} className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-sm border border-slate-200 flex items-center justify-center gap-2">
+              Lihat Demo Dashboard
+            </button>
+          </div>
+        </main>
+
+        {/* Features Section */}
+        <section className="bg-white py-24 border-t border-slate-100 relative z-10">
+          <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-12">
+            <div className="text-center md:text-left bg-slate-50/50 p-8 rounded-[2rem] border border-slate-100 transition-all hover:shadow-lg">
+              <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-6 mx-auto md:mx-0"><MessageSquare strokeWidth={2.5} /></div>
+              <h3 className="font-black text-xl mb-3 tracking-tight">Telegram Bot NLP</h3>
+              <p className="text-slate-500 text-sm font-medium leading-relaxed">Cukup ketik "Makan siang 25rb", sistem kecerdasan buatan (NLP) kami otomatis mendeteksi nominal dan mengklasifikasikan kategori transaksi tanpa format ribet.</p>
+            </div>
+            <div className="text-center md:text-left bg-slate-50/50 p-8 rounded-[2rem] border border-slate-100 transition-all hover:shadow-lg">
+              <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-6 mx-auto md:mx-0"><Activity strokeWidth={2.5} /></div>
+              <h3 className="font-black text-xl mb-3 tracking-tight">Live Sync Dashboard</h3>
+              <p className="text-slate-500 text-sm font-medium leading-relaxed">Dilengkapi dengan visualisasi grafik mewah, sistem target tabungan virtual, dan AI Neural Advisor yang siap me-roasting gaya pengeluaranmu.</p>
+            </div>
+            <div className="text-center md:text-left bg-slate-50/50 p-8 rounded-[2rem] border border-slate-100 transition-all hover:shadow-lg">
+              <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mb-6 mx-auto md:mx-0"><Calculator strokeWidth={2.5} /></div>
+              <h3 className="font-black text-xl mb-3 tracking-tight">Sharia Integrated</h3>
+              <p className="text-slate-500 text-sm font-medium leading-relaxed">Satu-satunya tracker di Indonesia dengan Barakah Score dan kalkulator Zakat Maal otomatis berdasarkan harga emas real-time. Hartamu jadi lebih berkah.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Footer Landing */}
+        <footer className="bg-slate-900 py-10 text-center relative z-10">
+          <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Made with ❤️ by Rizkiakbarma. © 2026 UangKu Pro.</p>
+        </footer>
+
+        {/* Background Decorations */}
+        <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0"></div>
+        <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-teal-500/10 blur-[100px] rounded-full pointer-events-none z-0"></div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // RENDER DASHBOARD UTAMA (JIKA ADA USER_ID ATAU MODE DEMO)
+  // =========================================================================
 
   if (loading) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center p-10">
@@ -337,7 +395,7 @@ export default function App() {
     </div>
   );
 
-  const NavItem = ({ id, label, icon: Icon }) => (
+  const NavItem = ({ id, label, icon: Icon }: any) => (
     <button
       onClick={() => { setActiveTab(id); setIsMobileSidebarOpen(false); }}
       className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold transition-all group ${activeTab === id ? 'bg-emerald-600 text-white shadow-[0_8px_16px_rgba(16,185,129,0.15)]' : 'text-slate-500 hover:bg-slate-50'}`}
@@ -522,7 +580,7 @@ export default function App() {
                           <DonutChart className="h-52 w-full" data={categoryData} category="amount" index="name" valueFormatter={axisFormatter} colors={tremorColors} showAnimation={true} />
                         </div>
                         <div className="w-full md:w-1/2 space-y-3 max-h-52 overflow-y-auto custom-scrollbar pr-2">
-                          {categoryData.length > 0 ? categoryData.map((c, i) => (
+                          {categoryData.length > 0 ? categoryData.map((c: any, i: number) => (
                             <Flex key={c.name} className="border-b border-slate-50 pb-3 last:border-0 last:pb-0">
                               <div className="flex items-center gap-3">
                                 <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: hexColors[i % hexColors.length] }}></div>
@@ -717,7 +775,7 @@ export default function App() {
                       <Title className="font-black text-slate-900 text-2xl tracking-tighter">Riwayat Mutasi</Title>
                       <div className="relative w-full md:w-[320px]">
                           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                          <input type="text" placeholder="Cari keterangan..." className="w-full pl-12 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none shadow-sm" onChange={(e) => setSearchQuery(e.target.value)} />
+                          <input type="text" placeholder="Cari keterangan..." className="w-full pl-12 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                       </div>
                     </div>
                     <div className="overflow-x-auto max-h-[650px] custom-scrollbar">
