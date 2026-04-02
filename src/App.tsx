@@ -7,7 +7,8 @@ import {
   Search, RefreshCcw, Trash2, AlertTriangle, Target, Calculator,
   Coins, HeartHandshake, ArrowUpRight, ArrowDownRight, Zap,
   ChevronRight, ChevronLeft, Calendar, Menu, Settings, LogOut,
-  Sparkles, BarChart3, TrendingUp, LineChart as LineChartIcon
+  Sparkles, BarChart3, TrendingUp, LineChart as LineChartIcon,
+  Bot // 🔥 Import icon Bot untuk Neural Advisor
 } from 'lucide-react';
 
 import {
@@ -16,10 +17,11 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V26.0 - SPEED & UI FIX)
- * Fix: Progressive Loading (Supabase instan, GAS background), Restore Barakah Score, Responsive Layout.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V27.0 - ANGRY NEURAL ADVISOR)
+ * Fix: Menambahkan Neural Advisor (Mode Roasting) di paling atas Dashboard tanpa merusak layout.
  */
 
+// 🔥 1. SETUP KONEKSI DUA SUMBER DATA
 const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyslKsTua7BE8pwmFh1xfRZn7QhfQMSKbGYvY3nAxx6qu41iRXJLBK-z8AsKVSd2_g1ng/exec";
 const SUPABASE_URL = "https://tdjzksdxnvxoaethaxeo.supabase.co";
 const SUPABASE_KEY = "sb_publishable_CIPEHIf12ctSTq_liVgWiA_E3n734fh";
@@ -36,7 +38,7 @@ export default function App() {
   const [goals, setGoals] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [isSyncingGAS, setIsSyncingGAS] = useState(false); // State untuk indikator background sync
+  const [isSyncingGAS, setIsSyncingGAS] = useState(false);
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
   const [isDemo, setIsDemo] = useState(false);
@@ -65,11 +67,9 @@ export default function App() {
     });
   };
 
-  // 🔥 PROGRESSIVE LOADING (Solusi Web Lemot)
   const fetchData = async (idFromUrl) => {
     setLoading(true);
     
-    // STEP 1: Tarik Supabase dulu karena sangat cepat (< 0.5 detik)
     try {
       const { data } = await supabase.from('transactions').select('*').eq('user_id', String(idFromUrl));
       if (data) {
@@ -82,11 +82,9 @@ export default function App() {
       console.warn("Supabase fetch failed", e); 
       setError("Gagal memuat data utama.");
     } finally {
-      // Matikan layar loading utama agar web langsung bisa dipakai
       setLoading(false); 
     }
 
-    // STEP 2: Tarik Google Sheets di Background (Tidak memblokir layar)
     setIsSyncingGAS(true);
     try {
       const res = await fetch(`${GAS_API_URL}?userid=${idFromUrl}`);
@@ -94,10 +92,8 @@ export default function App() {
       if (json.status === 'success') {
         const sheetData = processIncomingData(json.data).map(item => ({ ...item, source: 'sheet' }));
         
-        // Gabungkan dengan data Supabase yang sudah ada di state
         setTransactions(prev => {
           const combined = [...prev, ...sheetData];
-          // Filter duplikat
           const uniqueTransactions = combined.filter((item, index, self) =>
             index === self.findIndex((t) => (
               t.dateKey === item.dateKey &&
@@ -111,7 +107,7 @@ export default function App() {
     } catch (e) { 
       console.warn("Sheets fetch failed", e); 
     } finally {
-      setIsSyncingGAS(false); // Selesai sinkronisasi background
+      setIsSyncingGAS(false);
     }
   };
 
@@ -210,7 +206,6 @@ export default function App() {
     const income = transactions.filter(t => t.type?.toUpperCase() === 'MASUK').reduce((a, b) => a + Number(b.amount), 0);
     const expense = transactions.filter(t => t.type?.toUpperCase() === 'KELUAR').reduce((a, b) => a + Number(b.amount), 0);
     
-    // 🔥 KEMBALINYA BARAKAH SCORE LOGIC
     const charity = transactions.filter(t => t.category?.toUpperCase() === 'SEDEKAH/ZAKAT').reduce((a, b) => a + Number(b.amount), 0);
     const targetRatio = 0.025;
     const currentRatio = expense > 0 ? charity / expense : 0;
@@ -273,13 +268,72 @@ export default function App() {
     setIsSettingBudget(false);
   };
 
+  // 🔥 LOGIKA NEURAL ADVISOR (MODE ROASTING)
+  const advisorInsight = useMemo(() => {
+    const budgetUsedPercent = monthlyBudget > 0 ? (totalKeluarBulanTerpilih / monthlyBudget) * 100 : 0;
+    const topCategory = categoryData.length > 0 ? categoryData[0] : null;
+    const charity = filteredByMonth.filter(t => t.category?.toUpperCase() === 'SEDEKAH/ZAKAT').reduce((a, b) => a + Number(b.amount), 0);
+
+    // Kumpulan styling untuk mode marah/aman
+    const styles = {
+      rose: { bg: "bg-rose-500/10 border-rose-500/20", iconBg: "bg-rose-500/20", textMain: "text-rose-500", textSub: "text-rose-400" },
+      amber: { bg: "bg-amber-500/10 border-amber-500/20", iconBg: "bg-amber-500/20", textMain: "text-amber-500", textSub: "text-amber-400" },
+      orange: { bg: "bg-orange-500/10 border-orange-500/20", iconBg: "bg-orange-500/20", textMain: "text-orange-500", textSub: "text-orange-400" },
+      violet: { bg: "bg-violet-500/10 border-violet-500/20", iconBg: "bg-violet-500/20", textMain: "text-violet-500", textSub: "text-violet-400" },
+      emerald: { bg: "bg-emerald-500/10 border-emerald-500/20", iconBg: "bg-emerald-500/20", textMain: "text-emerald-500", textSub: "text-emerald-400" },
+    };
+
+    // Prioritas 1: Kritis Limit Budget
+    if (budgetUsedPercent > 85) {
+      return {
+        title: "🚨 STATUS DARURAT!",
+        message: `WOY! Budget bulanan lu udah kepake ${Math.round(budgetUsedPercent)}%! Mau makan promag lu di akhir bulan?! Puasa jajan di luar sekarang juga!`,
+        theme: styles.rose
+      };
+    }
+    
+    // Prioritas 2: Gak pernah sedekah padahal jajan kenceng
+    if (totalKeluarBulanTerpilih > 1000000 && charity === 0) {
+      return {
+        title: "🔥 PELIT AMAT!",
+        message: `Duit lu abis ${formatRp(totalKeluarBulanTerpilih)} bulan ini tapi sedekah NOL BESAR! Pantesan ngerasa duit lu cepet abis, gak ada berkahnya! Buruan sedekah!`,
+        theme: styles.amber
+      };
+    }
+
+    // Prioritas 3: Kebocoran spesifik
+    if (topCategory && topCategory.amount > (monthlyBudget * 0.4)) {
+      return {
+        title: "🤬 KEBOCORAN DANA!",
+        message: `Buset dah! Duit lu ludes ${formatRp(topCategory.amount)} cuma buat ${topCategory.name} doang?! Lu nyari makan apa nyari pesugihan? Kurangin woy!`,
+        theme: styles.orange
+      };
+    }
+
+    // Prioritas 4: Goal Kosong melompong
+    if (activeGoal && activeGoal.current_amount === 0) {
+       return {
+         title: "🤡 HALUSINASI!",
+         message: `Gaya-gayaan bikin target pengen beli ${activeGoal.goal_name}, tapi celengan lu masih KOSONG! Kapan kebelinya kalau kerjanya wacana doang?! Nabung!`,
+         theme: styles.violet
+       };
+    }
+
+    // Prioritas 5: Aman terkendali
+    return {
+      title: "👀 GW PANTAU LU!",
+      message: `Tumben dompet lu agak aman bulan ini. Saldo masih nyisa. Tapi awas aja kalau besok-besok lu scroll Shopee terus foya-foya lagi, gw omelin lu!`,
+      theme: styles.emerald
+    };
+  }, [totalKeluarBulanTerpilih, monthlyBudget, categoryData, filteredByMonth, activeGoal]);
+
   const tremorColors = ["emerald-800", "emerald-500", "rose-500", "amber-500", "slate-800", "blue-500", "fuchsia-500", "cyan-500"];
   const hexColors = ["#065f46", "#10b981", "#f43f5e", "#f59e0b", "#1e293b", "#3b82f6", "#d946ef", "#06b6d4"];
 
   if (loading) return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center text-center p-10">
       <Loader2 className="animate-spin text-emerald-500 w-12 h-12 mb-6" />
-      <Text className="font-bold tracking-widest text-slate-400 uppercase text-[10px]">Mempersiapkan Dashboard...</Text>
+      <Text className="font-bold tracking-widest text-slate-300 uppercase text-[10px]">Mempersiapkan Dashboard...</Text>
     </div>
   );
 
@@ -369,7 +423,6 @@ export default function App() {
              <button onClick={() => setIsMobileSidebarOpen(true)} className="lg:hidden p-2 bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-emerald-600"><Menu size={20}/></button>
              <Flex className="gap-2">
                 <Badge color="emerald" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-emerald-100 animate-pulse">Live Sync Active</Badge>
-                {/* Indikator Data Lama sedang diproses */}
                 {isSyncingGAS && <Badge color="amber" variant="soft" className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border border-amber-100 animate-pulse"><Loader2 size={10} className="inline mr-1 animate-spin"/> Sync Legacy Data</Badge>}
              </Flex>
           </div>
@@ -388,6 +441,27 @@ export default function App() {
             {activeTab === 'overview' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                
+                {/* 🔥 FITUR BARU: NEURAL ADVISOR (ROASTING MODE) */}
+                <div className={`relative p-6 lg:p-8 rounded-[2.5rem] border shadow-md overflow-hidden flex items-center gap-5 transition-all bg-slate-900 ${advisorInsight.theme.border}`}>
+                  <div className="absolute -right-6 -top-10 opacity-5 pointer-events-none">
+                    <Bot size={180} className={advisorInsight.theme.textMain} />
+                  </div>
+                  
+                  <div className={`p-4 rounded-2xl shrink-0 ${advisorInsight.theme.iconBg} border border-white/5`}>
+                    <Bot size={32} className={advisorInsight.theme.textMain} />
+                  </div>
+                  
+                  <div className="relative z-10 flex-1">
+                    <Text className={`text-[10px] font-black uppercase tracking-[0.3em] ${advisorInsight.theme.textSub} mb-1 flex items-center gap-2`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping"></span>
+                      {advisorInsight.title}
+                    </Text>
+                    <Text className="text-white text-sm md:text-base font-semibold leading-relaxed opacity-95 lg:pr-20">
+                      {advisorInsight.message}
+                    </Text>
+                  </div>
+                </div>
+
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-6 lg:p-8 rounded-[2.5rem] shadow-lg border-t border-white ring-1 ring-slate-100/40">
                   <div>
                     <Text className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[9px] mb-2 flex items-center gap-2"><div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div> Total saldo aktif</Text>
@@ -466,7 +540,6 @@ export default function App() {
                   {/* --- KOLOM KANAN: WIDGETS --- */}
                   <aside className="w-full xl:w-96 shrink-0 space-y-6">
 
-                    {/* 🔥 BARAKAH SCORE IS BACK! */}
                     <Card className="rounded-[2.5rem] border-none shadow-xl p-8 bg-white ring-1 ring-slate-100 relative overflow-hidden group hover:shadow-2xl transition-all">
                       <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000">
                         <HeartHandshake size={140} />
@@ -560,7 +633,7 @@ export default function App() {
               </div>
             )}
 
-            {/* TAB GOALS, LEDGER, & ZAKAT TETAP SAMA */}
+            {/* TAB GOALS, LEDGER, & ZAKAT TETAP SAMA SEPERTI SEBELUMNYA */}
             {activeTab === 'goals' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-900 p-8 lg:p-10 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
