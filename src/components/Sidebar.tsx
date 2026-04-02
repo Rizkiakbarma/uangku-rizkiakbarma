@@ -17,7 +17,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const { t } = useApp();
   const [searchParams] = useSearchParams();
   const userId = searchParams.get('userid');
-  const query = userId ? `?userid=${userId}` : '';
+  const isDemo = searchParams.get('demo') === 'true';
+  const query = userId ? `?userid=${userId}` : isDemo ? `?demo=true` : '';
 
   return (
     <div className="h-full flex flex-col p-5 overflow-hidden">
