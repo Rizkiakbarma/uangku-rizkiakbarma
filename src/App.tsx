@@ -8,7 +8,7 @@ import {
   Coins, HeartHandshake, ArrowUpRight, ArrowDownRight, Zap,
   ChevronRight, ChevronLeft, Calendar, Menu, Settings, LogOut,
   Sparkles, BarChart3, TrendingUp, LineChart as LineChartIcon,
-  Bot, MessageSquare, Download, Palette // 🔥 Import Palette untuk icon Tema
+  Bot, MessageSquare, Download, Palette
 } from 'lucide-react';
 
 import {
@@ -17,8 +17,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.2 - THEME ENGINE)
- * Fix: Menambahkan Tema Dynamic (Emerald, Midnight Dark, Candy Pastel).
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.3 - THEME ENGINE FIX)
+ * Fix: Memperbaiki Bug "White Screen" dengan menambahkan chartColors dan chartHex ke dalam kamus Tema.
  */
 
 // 🔥 1. SETUP KONEKSI DUA SUMBER DATA
@@ -61,7 +61,10 @@ const THEMES = {
     selectionColor: 'selection:bg-emerald-100',
     darkCardBg: 'bg-slate-900',
     accentDark: 'text-emerald-400',
-    hexBg: '#FCFCFC'
+    hexBg: '#FCFCFC',
+    // Perbaikan: Tambahkan properti warna chart di setiap tema
+    chartColors: ["emerald-800", "emerald-500", "rose-500", "amber-500", "slate-800", "blue-500", "fuchsia-500", "cyan-500"],
+    chartHex: ["#065f46", "#10b981", "#f43f5e", "#f59e0b", "#1e293b", "#3b82f6", "#d946ef", "#06b6d4"]
   },
   dark: {
     id: 'dark',
@@ -88,7 +91,9 @@ const THEMES = {
     selectionColor: 'selection:bg-indigo-500/30',
     darkCardBg: 'bg-slate-800',
     accentDark: 'text-indigo-400',
-    hexBg: '#020617'
+    hexBg: '#020617',
+    chartColors: ["indigo-800", "indigo-500", "rose-500", "amber-500", "slate-800", "emerald-500", "fuchsia-500", "cyan-500"],
+    chartHex: ["#3730a3", "#6366f1", "#f43f5e", "#f59e0b", "#1e293b", "#10b981", "#d946ef", "#06b6d4"]
   },
   pastel: {
     id: 'pastel',
@@ -115,14 +120,15 @@ const THEMES = {
     selectionColor: 'selection:bg-rose-100',
     darkCardBg: 'bg-stone-900',
     accentDark: 'text-pink-400',
-    hexBg: '#fdf2f8'
+    hexBg: '#fdf2f8',
+    chartColors: ["rose-800", "rose-400", "emerald-400", "amber-400", "slate-800", "blue-400", "fuchsia-400", "cyan-400"],
+    chartHex: ["#9f1239", "#fb7185", "#34d399", "#fbbf24", "#1e293b", "#60a5fa", "#e879f9", "#22d3ee"]
   }
 };
 
 export default function App() {
-  // --- STATE TEMA ---
   const [currentTheme, setCurrentTheme] = useState(localStorage.getItem('budgetin_theme') || 'emerald');
-  const t = THEMES[currentTheme]; // Object Tema Aktif
+  const t = THEMES[currentTheme]; 
 
   const [activeTab, setActiveTab] = useState(localStorage.getItem('budgetin_last_tab') || 'overview');
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -398,13 +404,6 @@ export default function App() {
     return { title: "👀 GW PANTAU LU!", message: `Tumben dompet lu aman bulan ini. Tapi awas aja kalau besok lu foya-foya lagi, gw omelin lu!`, theme: styles.emerald };
   }, [totalKeluarBulanTerpilih, monthlyBudget, categoryData, filteredByMonth, activeGoal]);
 
-  // Color functions for charts
-  const getTremorColors = () => THEMES[currentTheme].chartColors;
-  const getHexColors = () => THEMES[currentTheme].chartHex;
-
-  // =========================================================================
-  // 🔥 RENDER LANDING PAGE JUALAN 
-  // =========================================================================
   if (showLanding) {
     return (
       <div className={`min-h-screen font-sans flex flex-col transition-colors duration-500 ${t.bg} ${t.textMain} ${t.selectionColor}`}>
@@ -420,7 +419,7 @@ export default function App() {
         </nav>
         
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 max-w-4xl mx-auto relative z-10">
-          <Badge className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}>✨ Tersedia Versi 29.2 (Dynamic Theming)</Badge>
+          <Badge className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}>✨ Tersedia Versi 29.3 (Theme Engine Stable)</Badge>
           
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.1]">
             Catat Keuangan <br className="hidden md:block"/>
@@ -467,10 +466,6 @@ export default function App() {
       </div>
     );
   }
-
-  // =========================================================================
-  // RENDER DASHBOARD UTAMA
-  // =========================================================================
 
   if (loading) return (
     <div className={`min-h-screen ${t.bg} flex flex-col items-center justify-center text-center p-10`}>
@@ -684,13 +679,13 @@ export default function App() {
                       <Title className={`font-bold border-l-4 pl-3 text-[10px] uppercase tracking-[0.3em] mb-8 leading-none ${t.textMain} ${t.primaryBorder}`}>Alokasi dana</Title>
                       <div className="flex flex-col md:flex-row items-center gap-8">
                         <div className="w-full md:w-1/2">
-                          <DonutChart className="h-52 w-full" data={categoryData} category="amount" index="name" valueFormatter={axisFormatter} colors={getTremorColors()} showAnimation={true} />
+                          <DonutChart className="h-52 w-full" data={categoryData} category="amount" index="name" valueFormatter={axisFormatter} colors={t.chartColors} showAnimation={true} />
                         </div>
                         <div className="w-full md:w-1/2 space-y-3 max-h-52 overflow-y-auto custom-scrollbar pr-2">
                           {categoryData.length > 0 ? categoryData.map((c: any, i: number) => (
                             <Flex key={c.name} className={`border-b pb-3 last:border-0 last:pb-0 ${t.border}`}>
                               <div className="flex items-center gap-3">
-                                <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: getHexColors()[i % getHexColors().length] }}></div>
+                                <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: t.chartHex[i % t.chartHex.length] }}></div>
                                 <Text className={`text-[11px] font-bold uppercase tracking-widest truncate max-w-[140px] ${t.textSub}`}>{c.name}</Text>
                               </div>
                               <Text className={`font-black text-xs tracking-tighter ${t.textMain}`}>{formatRp(c.amount)}</Text>
