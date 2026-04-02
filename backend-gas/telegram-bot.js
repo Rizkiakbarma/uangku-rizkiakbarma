@@ -94,13 +94,13 @@ function handleRegistration(chatId, key, firstName) {
         for (let i = 1; i < vData.length; i++) {
             if (String(vData[i][0]).trim() === inputKey) {
                 if (String(vData[i][1]).toUpperCase() === "USED") return "❌ ID Pesanan ini sudah pernah digunakan.";
-                
+
                 const secretKey = Utilities.getUuid(); // Mengunci privasi user baru
 
                 vSheet.getRange(i + 1, 2).setValue("USED");
                 vSheet.getRange(i + 1, 3).setValue(chatId);
                 uSheet.appendRow([chatId, firstName || "Customer", "ACTIVE", secretKey]);
-                
+
                 // Daftarkan ke Supabase users_auth
                 sendToSupabase("users_auth", {
                     secret_key: secretKey,
@@ -120,7 +120,7 @@ function migrateOldUsers() {
         const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
         const uSheet = ss.getSheetByName(SHEET_USER);
         const data = uSheet.getDataRange().getValues();
-        
+
         for (let i = 1; i < data.length; i++) {
             const chatId = String(data[i][0]).trim();
             const currentKey = data[i][3];
@@ -129,7 +129,7 @@ function migrateOldUsers() {
             if (chatId && !currentKey) {
                 const newKey = String(Utilities.getUuid());
                 uSheet.getRange(i + 1, 4).setValue(newKey); // Tulis ke kolom D
-                
+
                 sendToSupabase("users_auth", {
                     secret_key: newKey,
                     telegram_id: chatId,
@@ -137,7 +137,7 @@ function migrateOldUsers() {
                 });
             }
         }
-    } catch(e) { console.error("Migration Error: " + e.message); }
+    } catch (e) { console.error("Migration Error: " + e.message); }
 }
 
 // =========================================================================
@@ -184,7 +184,7 @@ function doPost(e) {
         if (!message || !message.text) return;
 
         const chatId = message.chat.id;
-        const text = message.text.trim();
+        let text = message.text.trim();
         const firstName = message.from ? message.from.first_name : "User";
 
         if (text === "/id") {
@@ -212,22 +212,53 @@ function doPost(e) {
             return;
         }
 
+        if (text.toLowerCase() === "/dashboard") {
+            const dashboardLink = `${DASHBOARD_URL}/?key=${getSecretKey(chatId)}`;
+            sendTelegramMessage(chatId, `📊 *Link Dashboard Pribadi Kamu:*\n[Buka Dashboard Di Sini](${dashboardLink})\n\n_Note: Link ini bersifat rahasia, jangan dibagikan ke orang lain._`);
+            return;
+        }
+
         if (text.startsWith("/help") || text.startsWith("/start")) {
             sendHelpMessage(chatId);
             return;
         }
 
-        // --- 🔥 FITUR GOALS: /setgoal [nama] [nominal] ---
-        if (text.startsWith("/setgoal")) {
+        // --- 🤖 FITUR GOALS: WIZARD SETGOAL ---
+        const stateCachePath = `state_${chatId}`;
+        const userState = CacheService.getScriptCache().get(stateCachePath);
+        
+        if (userState === "SETGOAL_NAME" && !text.startsWith("/")) {
+            CacheService.getScriptCache().put(stateCachePath, 'SETGOAL_AMT|' + text, 600);
+            sendTelegramMessage(chatId, `Sip! Target tabunganmu: *${text}*\n\nBerapa target nominal untuk dicapai?\n_Ketik angkanya saja, contoh: 15.000.000 atau 15jt_`);
+            return;
+        }
+        else if (userState && userState.startsWith("SETGOAL_AMT|") && !text.startsWith("/")) {
             const targetAmount = parseAmount(text);
             if (!targetAmount) {
-                sendTelegramMessage(chatId, "❌ Nominal tidak valid.\nGunakan: `/setgoal [nama_target] [nominal]`\nContoh: `/setgoal Laptop 10jt` atau `/setgoal HP 4,5 juta`");
+                sendTelegramMessage(chatId, "❌ Nominal tidak valid, coba ketik ulang angkanya (contoh: 15jt):");
+                return;
+            }
+            const goalName = userState.split('|')[1];
+            CacheService.getScriptCache().remove(stateCachePath);
+            text = `/setgoal ${goalName} ${targetAmount}`; // Lempar ke parser utama di bawah
+        }
+
+        if (text.trim() === "/setgoal") {
+            CacheService.getScriptCache().put(stateCachePath, "SETGOAL_NAME", 600);
+            sendTelegramMessage(chatId, `🎯 *Mau bikin target tabungan untuk apa?*\n\nBalas pesan ini dengan nama targetmu.\n_(Contoh: HP Baru, Bayar UKT, Liburan ke Bali)_`);
+            return;
+        }
+
+        // --- 🔥 FITUR GOALS: /setgoal [nama] [nominal] ---
+        if (text.startsWith("/setgoal ")) {
+            const targetAmount = parseAmount(text);
+            const goalName = text.replace('/setgoal', '').replace(/[\d\.,]+/g, '').replace(/\b(miliar|m|juta|jt|ribu|rb|k|ratus|perak)\b/gi, '').trim() || "Target Baru";
+            
+            if (!targetAmount) {
+                sendTelegramMessage(chatId, "❌ Nominal tidak valid.\nGunakan: `/setgoal [nama_target] [nominal]` atau ketik `/setgoal` saja.");
                 return;
             }
 
-            const goalName = text.replace('/setgoal', '').replace(/[\d\.,]+/g, '').replace(/\b(miliar|m|juta|jt|ribu|rb|k|ratus|perak)\b/gi, '').trim() || "Target Baru";
-
-            // Simpan Goal ke Supabase (DILENGKAPI ERROR CATCHER)
             const supaResponse = sendToSupabase("goals", {
                 user_id: String(chatId),
                 goal_name: goalName,
@@ -236,49 +267,64 @@ function doPost(e) {
                 is_active: true
             });
 
-            // Cek Jika Supabase Error
             if (supaResponse && supaResponse.isError) {
-                sendTelegramMessage(chatId, `❌ *GAGAL MENYIMPAN KE SUPABASE*\n\nData kamu tidak masuk ke database.\n\n*Penyebab dari Supabase:*\n\`${supaResponse.detail}\`\n\n_Pastikan kamu sudah buat tabel 'goals' dan mematikan RLS._`);
+                sendTelegramMessage(chatId, `❌ *GAGAL MENYIMPAN KE SUPABASE*\n\nPenyebab:\n\`${supaResponse.detail}\``);
                 return;
             }
 
             const goalId = supaResponse?.id || "0";
             const dashboardLink = `${DASHBOARD_URL}/?key=${getSecretKey(chatId)}`;
-            const replyMarkup = { inline_keyboard: [[{ text: "🗑️ BATALKAN TARGET", callback_data: `delgoal_${goalId}` }]] };
+            const replyMarkup = { inline_keyboard: [[{ text: "🗑️ BATALKAN", callback_data: `delgoal_${goalId}` }]] };
 
-            sendTelegramMessage(chatId, `🎯 *GOAL BARU TERCATAT!*\n\nTarget: *${goalName}*\nNominal: *Rp ${targetAmount.toLocaleString('id-ID')}*\n\nUntuk mulai menabung, ketik:\n\`goals ${goalName} 50k\`\n\n📊 *Cek progress di Dashboard:* [Klik Di Sini](${dashboardLink})`, replyMarkup);
+            sendTelegramMessage(chatId, `🎯 *GOAL BARU TERCATAT!*\n\nTarget: *${goalName}*\nNominal: *Rp ${targetAmount.toLocaleString('id-ID')}*\n\n💡 *CARA MENGISI CELENGAN INI:*\nKapan pun kamu punya uang lebih, cukup kirim chat ke bot dengan format:\n👉 \`nabung 50k\`\n👉 \`nabung 150000\`\n\nNanti bot akan otomatis memunculkan tombol pilihan celenganmu!\n\n📊 *Pantau Progress di Dashboard:* [Klik Di Sini](${dashboardLink})`, replyMarkup);
             return;
         }
 
-        // --- 🔥 FITUR GOALS: goals [nama] [nominal] ---
-        if (text.toLowerCase().startsWith("goals ")) {
+        // --- 🔥 FITUR GOALS: nabung [nominal] & goals [nama] [nominal] ---
+        if (text.toLowerCase().startsWith("goals ") || text.toLowerCase().startsWith("nabung ")) {
             const amt = parseAmount(text);
             if (!amt) {
-                sendTelegramMessage(chatId, "❌ Nominal tidak valid.\nGunakan format: `goals [nama] [nominal]` \nContoh: `goals hp 100k`");
+                sendTelegramMessage(chatId, "❌ Nominal tidak valid.\nContoh: `goals 100k` atau `nabung 50rb`");
                 return;
             }
 
-            const goalName = text.replace(/^goals\s+/i, '').replace(/[\d\.,]+/g, '').replace(/\b(miliar|m|juta|jt|ribu|rb|k|ratus|perak)\b/gi, '').trim();
+            const possibleName = text.replace(/^(goals|nabung)\s+/i, '').replace(/[\d\.,]+/g, '').replace(/\b(miliar|m|juta|jt|ribu|rb|k|ratus|perak)\b/gi, '').trim();
 
-            const goal = getGoalData(chatId, goalName);
-            if (!goal) {
-                sendTelegramMessage(chatId, `❌ Target *"${goalName}"* tidak ditemukan di sistem. Buat dulu pakai perintah:\n\`/setgoal ${goalName} [nominal]\``);
+            if (possibleName) {
+                // FALLBACK LAMA: goals hp 100k
+                const goal = getGoalData(chatId, possibleName);
+                if (!goal) {
+                    sendTelegramMessage(chatId, `❌ Target *"${possibleName}"* tidak ditemukan di sistem.`);
+                    return;
+                }
+                showGoalSourceSelection(chatId, goal, amt);
+                return;
+            } else {
+                // FLOW BARU: goals 100k
+                const activeGoals = getAllActiveGoals(chatId);
+                if (!activeGoals || activeGoals.length === 0) {
+                    sendTelegramMessage(chatId, "Kamu belum punya Target Goals aktif. Buat dulu yuk ketik `/setgoal`");
+                    return;
+                }
+
+                if (activeGoals.length === 1) {
+                    showGoalSourceSelection(chatId, activeGoals[0], amt);
+                    return;
+                }
+
+                const cacheKey = "g" + new Date().getTime().toString(36);
+                CacheService.getScriptCache().put(cacheKey, JSON.stringify({ amt: amt }), 600);
+                
+                let keyboard = [];
+                activeGoals.forEach(g => {
+                    keyboard.push([{ text: `🎯 ${g.goal_name}`, callback_data: `selGoal_${cacheKey}_${g.id}` }]);
+                });
+                keyboard.push([{ text: "💼 Tabungan Biasa / Lainnya", callback_data: `selGoal_${cacheKey}_invest` }]);
+                keyboard.push([{ text: "❌ Batalkan", callback_data: `selGoal_${cacheKey}_cancel` }]);
+
+                sendTelegramMessage(chatId, `💰 *Uang Rp ${amt.toLocaleString('id-ID')} ini mau ditabung ke mana?*`, { inline_keyboard: keyboard });
                 return;
             }
-
-            const cacheKey = "g" + new Date().getTime().toString(36);
-            CacheService.getScriptCache().put(cacheKey, JSON.stringify({ gid: goal.id, gname: goal.goal_name, amt: amt, curr: goal.current_amount }), 600);
-
-            const keyboard = {
-                inline_keyboard: [
-                    [{ text: "🏦 Saldo Utama", callback_data: `src_${cacheKey}_main` }],
-                    [{ text: "💵 Uang Luar (Fresh)", callback_data: `src_${cacheKey}_fresh` }],
-                    [{ text: "❌ Batalkan", callback_data: `src_${cacheKey}_cancel` }]
-                ]
-            };
-
-            sendTelegramMessage(chatId, `💰 *Menabung untuk ${goal.goal_name}*\nNominal: *Rp ${amt.toLocaleString('id-ID')}*\n\nUangnya bersumber dari mana, Best?`, keyboard);
-            return;
         }
 
         const lines = text.split('\n');
@@ -549,6 +595,57 @@ function handleCallback(callback) {
             return;
         }
 
+        // --- 🔥 CALLBACK UNTUK PEMILIHAN GOAL (FLOW BARU) ---
+        if (data.startsWith("selGoal_")) {
+            const parts = data.split("_");
+            const cacheKey = parts[1];
+            const action = parts[2];
+
+            if (action === "cancel") {
+                UrlFetchApp.fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
+                    method: "post", contentType: "application/json",
+                    payload: JSON.stringify({ chat_id: chatId, message_id: messageId, text: "❌ *Aksi menabung dibatalkan.*", parse_mode: "Markdown" }),
+                    muteHttpExceptions: true
+                });
+                return;
+            }
+
+            const cached = CacheService.getScriptCache().get(cacheKey);
+            if (!cached) {
+                UrlFetchApp.fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
+                    method: "post", contentType: "application/json",
+                    payload: JSON.stringify({ chat_id: chatId, message_id: messageId, text: "❌ Sesi kadaluarsa, silakan ulangi perintah `nabung`." }),
+                    muteHttpExceptions: true
+                });
+                return;
+            }
+
+            const parsedCache = JSON.parse(cached);
+            const amt = parsedCache.amt;
+
+            // Delete the inline keyboard message beforehand to prevent stacking
+            UrlFetchApp.fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/deleteMessage`, { 
+                method: "post", contentType: "application/json", 
+                payload: JSON.stringify({ chat_id: chatId, message_id: messageId }), 
+                muteHttpExceptions: true 
+            });
+
+            if (action === "invest") {
+                saveTransaction(chatId, "Tabungan / Investasi Tambahan", amt, "INVESTASI");
+                return;
+            }
+
+            const goalId = action;
+            const url = `${SUPABASE_URL}/rest/v1/goals?id=eq.${goalId}&select=*`;
+            const res = UrlFetchApp.fetch(url, { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }, muteHttpExceptions: true });
+            const goalData = JSON.parse(res.getContentText())[0];
+
+            if (goalData) {
+                showGoalSourceSelection(chatId, goalData, amt);
+            }
+            return;
+        }
+
         // --- 🔥 CALLBACK UNTUK PEMILIHAN SUMBER DANA GOALS ---
         if (data.startsWith("src_")) {
             const parts = data.split("_");
@@ -644,6 +741,35 @@ function getGoalData(chatId, goalName) {
         const data = JSON.parse(res.getContentText());
         return data.length > 0 ? data[0] : null;
     } catch (e) { return null; }
+}
+
+function getAllActiveGoals(chatId) {
+    const url = `${SUPABASE_URL}/rest/v1/goals?user_id=eq.${chatId}&is_active=eq.true&select=id,goal_name,current_amount&order=created_at.desc`;
+    const options = {
+        method: "get",
+        headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` },
+        muteHttpExceptions: true
+    };
+    try {
+        const res = UrlFetchApp.fetch(url, options);
+        const data = JSON.parse(res.getContentText());
+        return Array.isArray(data) ? data : null;
+    } catch (e) { return null; }
+}
+
+function showGoalSourceSelection(chatId, goal, amt) {
+    const cacheKey = "g" + new Date().getTime().toString(36);
+    CacheService.getScriptCache().put(cacheKey, JSON.stringify({ gid: goal.id, gname: goal.goal_name, amt: amt, curr: goal.current_amount }), 600);
+
+    const keyboard = {
+        inline_keyboard: [
+            [{ text: "🏦 Saldo Utama", callback_data: `src_${cacheKey}_main` }],
+            [{ text: "💵 Uang Luar (Fresh)", callback_data: `src_${cacheKey}_fresh` }],
+            [{ text: "❌ Batalkan", callback_data: `src_${cacheKey}_cancel` }]
+        ]
+    };
+
+    sendTelegramMessage(chatId, `💰 *Menabung untuk ${goal.goal_name}*\nNominal: *Rp ${amt.toLocaleString('id-ID')}*\n\nUangnya bersumber dari mana, Best?`, keyboard);
 }
 
 function updateGoalAmount(goalId, newAmount) {
@@ -785,8 +911,8 @@ function sendDailySummary() {
 function sendHelpMessage(chatId) {
     const helpMsg = "Assalamualaikum! 👋\n*BudgetIN Pro* siap bantu catat keuangan kamu.\n\n" +
         "🚀 *CARA MULAI:*\n1️⃣ `/register [REF_ID]`\n2️⃣ *Langsung Catat:* `Nasi Padang 25rb` atau `Gaji 5jt`\n\n" +
-        "🎯 *FITUR GOALS (Target Nabung):*\n• `/setgoal [nama] [nominal]` — Buat target nabung.\n• `goals [nama] [nominal]` — Isi celengan ke target.\n\n" +
-        "📊 *DAFTAR PERINTAH LAIN:*\n• `/stats` — Rangkuman 7 hari.\n• `/id` — Cek ID kamu.\n\n" +
+        "🎯 *FITUR GOALS (Target Nabung):*\n• `/setgoal` — Buat target nabung baru.\n• `nabung 50k` — Ketik jumlah untuk isi celengan.\n\n" +
+        "📊 *DAFTAR PERINTAH LAIN:*\n• `/dashboard` — Link web kamu.\n• `/stats` — Rangkuman 7 hari.\n• `/id` — Cek ID kamu.\n\n" +
         "💡 _Financial Freedom dimulai dari mencatat keuangan harian._";
     sendTelegramMessage(chatId, helpMsg);
 }

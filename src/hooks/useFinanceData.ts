@@ -15,51 +15,59 @@ export function useFinanceData() {
 
   const fetchData = useCallback(async (userId: string) => {
     setLoading(true);
+    setError(null);
+    setIsSyncingGAS(true);
+    
     try {
-      const { data, error: dbError } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', String(userId));
+      // Jalankan fetch Supabase & GAS secara bersamaan (Parallel)
+      const [supaRes, gasRes] = await Promise.allSettled([
+        supabase.from('transactions').select('*').eq('user_id', String(userId)),
+        fetch(`${GAS_URL}?userid=${userId}`).then(res => res.json())
+      ]);
 
-      if (dbError) throw dbError;
+      let combinedData: Transaction[] = [];
 
-      if (data) {
-        const supaData = processIncomingData(data as RawTransaction[])
+      // 1. Ekstrak Hasil Supabase
+      if (supaRes.status === 'fulfilled' && supaRes.value.data) {
+        combinedData = processIncomingData(supaRes.value.data as RawTransaction[])
           .map(item => ({ ...item, source: 'supabase' as const }));
-        supaData.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime() || b.id - a.id);
-        setTransactions(supaData);
+      } else if (supaRes.status === 'rejected') {
+        console.warn('[BudgetIN] Supabase fetch gagal:', supaRes.reason);
       }
-      setError(null);
+
+      // 2. Ekstrak Hasil Google Sheets
+      if (gasRes.status === 'fulfilled') {
+        const json = gasRes.value as { status: string; data: RawTransaction[] };
+        if (json.status === 'success') {
+          const sheetData = processIncomingData(json.data)
+            .map(item => ({ ...item, source: 'sheet' as const }));
+            
+          combinedData = [...combinedData, ...sheetData];
+        }
+      } else {
+        console.warn('[BudgetIN] Sheets sync gagal:', gasRes.reason);
+      }
+
+      // 3. Filter Duplikat & Sort
+      const unique = combinedData.filter((item, index, self) =>
+        index === self.findIndex(tx =>
+          tx.dateKey === item.dateKey &&
+          tx.amount === item.amount &&
+          tx.desc?.toLowerCase() === item.desc?.toLowerCase()
+        )
+      );
+      
+      unique.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime() || b.id - a.id);
+      
+      setTransactions(unique);
+      if (unique.length === 0 && supaRes.status === 'rejected') {
+        setError('Gagal memuat data. Periksa koneksi internet kamu.');
+      }
     } catch (e) {
-      console.warn('[BudgetIN] Supabase fetch gagal', e);
-      setError('Gagal memuat data. Periksa koneksi internet kamu.');
+      console.error(e);
+      setError('Terjadi kesalahan yang tidak terduga.');
     } finally {
       setLoading(false);
-    }
-
-    // Sync data legacy dari Google Sheets
-    setIsSyncingGAS(true);
-    try {
-      const res = await fetch(`${GAS_URL}?userid=${userId}`);
-      const json = await res.json() as { status: string; data: RawTransaction[] };
-      if (json.status === 'success') {
-        const sheetData = processIncomingData(json.data)
-          .map(item => ({ ...item, source: 'sheet' as const }));
-        setTransactions(prev => {
-          const combined = [...prev, ...sheetData];
-          const unique = combined.filter((item, index, self) =>
-            index === self.findIndex(tx =>
-              tx.dateKey === item.dateKey &&
-              tx.amount === item.amount &&
-              tx.desc?.toLowerCase() === item.desc?.toLowerCase()
-            )
-          );
-          return unique.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime() || b.id - a.id);
-        });
-      }
-    } catch (e) {
-      console.warn('[BudgetIN] Sheets sync gagal', e);
-    } finally {
       setIsSyncingGAS(false);
     }
   }, []);

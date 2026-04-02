@@ -180,7 +180,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
 
     validateAccess();
-  }, [searchParams, navigate, fetchData, fetchGoals, _startDemo]);
+  }, [searchParams.get('key'), searchParams.get('demo'), navigate, fetchData, fetchGoals, _startDemo]);
 
   const toggleTheme = useCallback(() => {
     const keys = Object.keys(THEMES) as ThemeId[];
