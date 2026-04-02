@@ -82,7 +82,7 @@ function AppLayout() {
       <main className="flex-1 h-screen overflow-y-auto relative custom-scrollbar flex flex-col">
         <Modals />
         <Header onMenuClick={() => setIsMobileSidebarOpen(true)} />
-        <div className="flex-1 p-5 lg:p-7 max-w-8xl mx-auto w-full">
+        <div className="flex-1 p-4 lg:p-5 max-w-7xl mx-auto w-full">
           <Outlet />
         </div>
       </main>

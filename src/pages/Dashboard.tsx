@@ -20,27 +20,27 @@ export default function Dashboard() {
   } = useApp() as ReturnType<typeof useApp> & { setActiveTab?: (tab: string) => void };
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
-      {/* AI Advisor */}
-      <div className={`relative p-6 lg:p-8 rounded-[2.5rem] border shadow-md overflow-hidden flex items-center gap-5 transition-all ${t.darkCardBg} ${advisorInsight.theme.border}`}>
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-4">
+      {/* AI Advisor - lebih compact */}
+      <div className={`relative p-4 lg:p-5 rounded-[2rem] border shadow-md overflow-hidden flex items-center gap-4 transition-all ${t.darkCardBg} ${advisorInsight.theme.border}`}>
         <div className="absolute -right-6 -top-10 opacity-5 pointer-events-none">
-          <Bot size={180} className={advisorInsight.theme.textMain} />
+          <Bot size={160} className={advisorInsight.theme.textMain} />
         </div>
-        <div className={`p-4 rounded-2xl shrink-0 ${advisorInsight.theme.iconBg} border border-white/5`}>
-          <Bot size={32} className={advisorInsight.theme.textMain} />
+        <div className={`p-3 rounded-2xl shrink-0 ${advisorInsight.theme.iconBg} border border-white/5`}>
+          <Bot size={28} className={advisorInsight.theme.textMain} />
         </div>
         <div className="relative z-10 flex-1">
-          <Text className={`text-[10px] font-black uppercase tracking-[0.3em] ${advisorInsight.theme.textSub} mb-1 flex items-center gap-2`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" /> {advisorInsight.title}
+          <Text className={`text-[9px] font-black uppercase tracking-[0.3em] ${advisorInsight.theme.textSub} mb-1 flex items-center gap-2`}>
+            <span className="w-1 h-1 rounded-full bg-current animate-ping" /> {advisorInsight.title}
           </Text>
-          <Text className="text-white text-sm md:text-base font-semibold leading-relaxed opacity-95 lg:pr-20">
+          <Text className="text-white text-sm md:text-[15px] font-medium leading-relaxed opacity-95 xl:pr-10">
             {advisorInsight.message}
           </Text>
         </div>
       </div>
 
       {/* Saldo + Navigator Bulan */}
-      <div className={`flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 lg:p-8 rounded-[2.5rem] shadow-lg border-t ring-1 transition-colors duration-500 border-white/5 ${t.cardBg} ${t.border}`}>
+      <div className={`flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 lg:p-6 rounded-[2.5rem] shadow-lg border-t ring-1 transition-colors duration-500 border-white/5 ${t.cardBg} ${t.border}`}>
         <div>
           <Text className={`font-bold uppercase tracking-[0.3em] text-[9px] mb-2 flex items-center gap-2 ${t.textSub}`}>
             <div className={`w-2 h-2 ${t.primary} rounded-full animate-ping`} /> Total saldo aktif
@@ -73,12 +73,12 @@ export default function Dashboard() {
       </div>
 
       {/* Kartu Pemasukan & Pengeluaran */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {[
           { label: 'Pemasukan Bulan Ini', value: totalMasukBulanTerpilih, pct: momIncomePercentage, up: true },
           { label: 'Pengeluaran Bulan Ini', value: totalKeluarBulanTerpilih, pct: momExpensePercentage, up: false },
         ].map(({ label, value, pct, up }) => (
-          <Card key={label} className={`rounded-[2rem] border-none shadow-sm p-6 lg:p-8 ring-1 hover:translate-y-[-3px] transition-all duration-500 ${t.cardBg} ${t.border}`}>
+          <Card key={label} className={`rounded-[2rem] border-none shadow-sm p-5 lg:p-6 ring-1 hover:translate-y-[-3px] transition-all duration-500 ${t.cardBg} ${t.border}`}>
             <Flex alignItems="center">
               <div>
                 <Text className={`text-[10px] font-bold uppercase tracking-widest leading-none mb-3 ${t.textSub}`}>{label}</Text>
@@ -99,10 +99,10 @@ export default function Dashboard() {
       </div>
 
       {/* Grafik + Sidebar kanan */}
-      <div className="flex flex-col xl:flex-row gap-6">
-        <div className="flex-1 min-w-0 space-y-6">
+      <div className="flex flex-col xl:flex-row gap-4">
+        <div className="flex-1 min-w-0 flex flex-col gap-4">
           {/* Grafik Tren Harian */}
-          <Card className={`rounded-[2.5rem] border-none shadow-xl p-6 lg:p-8 ring-1 transition-colors duration-500 overflow-hidden ${t.cardBg} ${t.border}`}>
+          <Card className={`rounded-[2.5rem] border-none shadow-xl p-5 lg:p-6 ring-1 transition-colors duration-500 overflow-hidden ${t.cardBg} ${t.border}`}>
             <Flex className="mb-2 items-start justify-between">
               <div><Title className={`font-bold border-l-4 pl-3 text-[11px] tracking-widest leading-none uppercase ${t.textMain} ${t.primaryBorder}`}>Tren harian</Title></div>
               <div className={`flex p-1 rounded-xl ring-1 shrink-0 ${t.bgSoft} ${t.border}`}>
@@ -140,17 +140,20 @@ export default function Dashboard() {
               </div>
             </div>
           </Card>
+
+          {/* Goal Aktif — di bawah Alokasi Dana */}
+          <GoalCard activeGoal={activeGoal} t={t} formatRp={formatRp} axisFormatter={axisFormatter} />
+
+          {/* Financial Insight diletakkan di bawah Goal agar mengisi ruang kosong sejajar dengan limit bulanan */}
+          <FinancialAdviceCard />
+
         </div>
 
         {/* Sidebar kanan */}
-        <aside className="w-full xl:w-96 shrink-0 space-y-6">
-          {/* Barakah Score */}
+        {/* Sidebar kanan: Barakah Score + Badges + Budget (sejajar dengan GoalCard) */}
+        <aside className="w-full xl:w-96 shrink-0 space-y-4">
           <BarakahScoreCard />
-          {/* Badges */}
           <BadgesCard userBadges={userBadges} t={t} />
-          {/* Goal Aktif */}
-          <GoalCard activeGoal={activeGoal} t={t} formatRp={formatRp} axisFormatter={axisFormatter} />
-          {/* Budget Tracker */}
           <BudgetCard monthlyBudget={monthlyBudget} isSettingBudget={isSettingBudget} setIsSettingBudget={setIsSettingBudget} handleSaveBudget={handleSaveBudget} totalKeluarBulanTerpilih={totalKeluarBulanTerpilih} t={t} formatRp={formatRp} />
         </aside>
       </div>
@@ -160,20 +163,62 @@ export default function Dashboard() {
 
 // ── Sub-komponen Lokal ────────────────────────────────────────────────────────
 
+function FinancialAdviceCard() {
+  const { t, categoryData, totalKeluarBulanTerpilih, totalMasukBulanTerpilih, formatRp } = useApp() as any;
+
+  let advice = null;
+  
+  if (totalMasukBulanTerpilih > 0) {
+    const savingsRate = ((totalMasukBulanTerpilih - totalKeluarBulanTerpilih) / totalMasukBulanTerpilih) * 100;
+    if (savingsRate < 10) {
+      advice = { color: 'text-rose-500', title: 'Waspada Tabungan', desc: `Tabunganmu bulan ini kurang dari 10% pendapatan. Coba kendalikan pengeluaran agar bisa mencapai batas ideal (20%).` };
+    } else if (savingsRate >= 20) {
+      advice = { color: 'text-emerald-500', title: 'Keuangan Sangat Sehat', desc: `Pertahankan! Kamu berhasil menyisihkan aman lebih dari 20% pendapatanmu untuk masa depan.` };
+    }
+  }
+
+  if (!advice && categoryData.length > 0) {
+    const topCat = [...categoryData].sort((a: any, b: any) => b.amount - a.amount)[0];
+    const topPct = (topCat.amount / totalKeluarBulanTerpilih) * 100;
+    if (topPct > 40) {
+      advice = { color: 'text-amber-500', title: `Evaluasi ${topCat.name}`, desc: `Waspada, sekitar ${Math.round(topPct)}% pengeluaranmu tersedot ke kategori ${topCat.name} (${formatRp(topCat.amount)}). Kurangi jika ini bukan prioritas.` };
+    } else {
+       advice = { color: 'text-emerald-500', title: 'Distribusi Cerdas', desc: `Keren! Pengeluaranmu terdistribusi merata dan tidak ada pembengkakan pada satu kategori tertentu.` };
+    }
+  }
+
+  if (!advice) return null;
+
+  return (
+    <Card className={`flex-1 rounded-[2.5rem] border-none shadow-sm ring-1 p-6 transition-colors flex flex-col justify-center overflow-hidden group ${t.cardBg} ${t.border}`}>
+      <Flex className="items-center sm:items-start flex-col sm:flex-row gap-4 sm:gap-6 text-center sm:text-left">
+        <div className={`p-4 rounded-full bg-white/5 border border-white/10 ${advice.color}`}>
+          <Bot size={28} />
+        </div>
+        <div>
+          <Text className={`font-black uppercase tracking-[0.3em] text-[9px] mb-2 ${t.primaryText}`}>System Analysis</Text>
+          <Title className={`font-black tracking-tight text-base sm:text-lg mb-1 leading-none ${advice.color}`}>{advice.title}</Title>
+          <Text className={`text-xs font-semibold opacity-80 max-w-2xl leading-relaxed ${t.textMain}`}>{advice.desc}</Text>
+        </div>
+      </Flex>
+    </Card>
+  );
+}
+
 function BarakahScoreCard() {
   const { t, barakahScore, setIsStoryModalOpen } = useApp();
   return (
-    <Card className={`rounded-[2.5rem] border-none shadow-xl p-8 ring-1 relative overflow-hidden group hover:shadow-2xl transition-all duration-500 ${t.cardBg} ${t.border}`}>
+    <Card className={`rounded-[2.5rem] border-none shadow-xl p-6 ring-1 relative overflow-hidden group hover:shadow-2xl transition-all duration-500 ${t.cardBg} ${t.border}`}>
       <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000">
         <HeartHandshake size={140} className={t.textMain} />
       </div>
       <Title className={`text-[10px] font-bold tracking-[0.3em] uppercase mb-2 border-l-4 pl-3 leading-none ${t.textMain} ${t.primaryBorder}`}>Barakah Score</Title>
       {/* Penjelasan rumus */}
-      <p className={`text-[9px] mb-6 italic ${t.textSub}`}>
+      <p className={`text-[9px] mb-5 italic ${t.textSub}`}>
         *Skor dihitung dari rasio sedekah/zakat terhadap total pengeluaran. Target: ≥ 2,5% = skor 100.
       </p>
       <div className="flex flex-col items-center text-center">
-        <div className="relative mb-6 flex items-center justify-center">
+        <div className="relative mb-5 flex items-center justify-center">
           <svg className="w-32 h-32 transform -rotate-90">
             <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="10" fill="transparent" className={t.bgSoft} />
             <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="10" fill="transparent"
@@ -208,8 +253,8 @@ function BarakahScoreCard() {
 
 function BadgesCard({ userBadges, t }: { userBadges: ReturnType<typeof useApp>['userBadges']; t: ReturnType<typeof useApp>['t'] }) {
   return (
-    <Card className={`rounded-[2.5rem] border-none shadow-lg ring-1 p-8 overflow-hidden relative transition-colors duration-500 ${t.cardBg} ${t.border}`}>
-      <Flex className="mb-6 items-center justify-between">
+    <Card className={`rounded-[2.5rem] border-none shadow-lg ring-1 p-6 overflow-hidden relative transition-colors duration-500 ${t.cardBg} ${t.border}`}>
+      <Flex className="mb-5 items-center justify-between">
         <Title className={`text-[10px] font-bold tracking-[0.3em] leading-none uppercase ${t.textMain}`}>Pencapaian Bulan Ini</Title>
         <Trophy size={16} className={t.textSub} />
       </Flex>
@@ -232,12 +277,12 @@ function GoalCard({ activeGoal, t, formatRp, axisFormatter }: {
   formatRp: (n: number) => string;
   axisFormatter: (n: number) => string;
 }) {
-  const { setActiveTab } = useApp() as ReturnType<typeof useApp> & { setActiveTab?: (tab: string) => void };
-  const navigate = require('react-router-dom').useNavigate;
-
   if (!activeGoal) {
     return (
-      <Card className={`rounded-[2.5rem] border-none shadow-sm p-8 text-center flex flex-col items-center justify-center border-2 border-dashed cursor-pointer transition-colors ${t.bgSoft} ${t.border}`} onClick={() => window.location.href = '/goals' + window.location.search}>
+      <Card
+        className={`rounded-[2.5rem] border-none shadow-sm p-6 text-center flex flex-col items-center justify-center border-2 border-dashed cursor-pointer transition-colors h-36 ${t.bgSoft} ${t.border}`}
+        onClick={() => window.location.href = '/goals' + window.location.search}
+      >
         <Target className={`mb-3 ${t.textSub}`} size={32} />
         <Text className={`text-[10px] font-bold uppercase ${t.textSub}`}>Belum ada target.</Text>
         <Text className={`text-[9px] mt-1 italic ${t.textSub}`}>Ketik `/setgoal Laptop 10jt` di Bot!</Text>
@@ -245,26 +290,53 @@ function GoalCard({ activeGoal, t, formatRp, axisFormatter }: {
     );
   }
 
+  const pct = Math.min(Math.round((activeGoal.current_amount / activeGoal.target_amount) * 100), 100);
+  const r = 52;
+  const circumference = 2 * Math.PI * r;
+  const offset = circumference - (pct / 100) * circumference;
+
   return (
-    <Card className={`rounded-[2.5rem] border-none shadow-xl p-8 text-white relative overflow-hidden group hover:shadow-2xl transition-all cursor-pointer ${t.darkCardBg}`} onClick={() => window.location.href = '/goals' + window.location.search}>
+    <Card
+      className={`rounded-[2.5rem] border-none shadow-xl p-6 text-white relative overflow-hidden group hover:shadow-2xl transition-all cursor-pointer ${t.darkCardBg}`}
+      onClick={() => window.location.href = '/goals' + window.location.search}
+    >
       <div className="absolute -top-10 -right-10 opacity-10 group-hover:scale-110 transition-transform duration-1000"><Target size={160} /></div>
-      <Title className={`text-[10px] font-bold tracking-[0.3em] uppercase mb-8 border-l-4 pl-3 leading-none ${t.accentDark} border-current`}>Fokus Target 🎯</Title>
-      <div className="relative z-10">
-        <Flex className="mb-4">
-          <h3 className="text-xl font-black tracking-tight">{activeGoal.goal_name}</h3>
-          <Badge color={t.chartMain as any} className="rounded-lg text-[9px] font-black uppercase shadow-lg">
-            {Math.min(Math.round((activeGoal.current_amount / activeGoal.target_amount) * 100), 100)}%
-          </Badge>
-        </Flex>
-        <ProgressBar value={(activeGoal.current_amount / activeGoal.target_amount) * 100} color={t.chartMain as any} className="h-3 rounded-full mb-6 bg-white/10" />
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
-            <Text className="text-[8px] text-white/50 uppercase font-bold mb-1">Di Celengan</Text>
-            <Text className={`text-xs font-black ${t.accentDark}`}>{formatRp(activeGoal.current_amount)}</Text>
+      <Title className={`text-[10px] font-bold tracking-[0.3em] uppercase mb-5 border-l-4 pl-3 leading-none ${t.accentDark} border-current`}>Fokus Target 🎯</Title>
+
+      {/* Layout horizontal di desktop, vertikal di mobile */}
+      <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6">
+
+        {/* Circular Progress */}
+        <div className="relative flex-shrink-0">
+          <svg className="w-32 h-32 transform -rotate-90">
+            <circle cx="64" cy="64" r={r} stroke="currentColor" strokeWidth="10" fill="transparent" className="text-white/10" />
+            <circle cx="64" cy="64" r={r} stroke="currentColor" strokeWidth="10" fill="transparent"
+              strokeDasharray={circumference}
+              strokeDashoffset={offset}
+              className={`transition-all duration-1000 ease-out ${t.accentDark}`}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-3xl font-black leading-none">{pct}%</span>
+            <span className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Done</span>
           </div>
-          <div className="p-3 bg-white/5 rounded-2xl border border-white/10">
-            <Text className="text-[8px] text-white/50 uppercase font-bold mb-1">Target Misi</Text>
-            <Text className="text-xs font-black text-white">{axisFormatter(activeGoal.target_amount)}</Text>
+        </div>
+
+        {/* Detail Goal */}
+        <div className="flex-1 min-w-0 w-full">
+          <Flex className="mb-4 items-start">
+            <h3 className="text-xl font-black tracking-tight truncate">{activeGoal.goal_name}</h3>
+          </Flex>
+          <ProgressBar value={(activeGoal.current_amount / activeGoal.target_amount) * 100} color={t.chartMain as any} className="h-2.5 rounded-full mb-5 bg-white/10" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+              <Text className="text-[8px] text-white/50 uppercase font-bold mb-1">Di Celengan</Text>
+              <Text className={`text-sm font-black ${t.accentDark}`}>{formatRp(activeGoal.current_amount)}</Text>
+            </div>
+            <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+              <Text className="text-[8px] text-white/50 uppercase font-bold mb-1">Target Misi</Text>
+              <Text className="text-sm font-black text-white">{axisFormatter(activeGoal.target_amount)}</Text>
+            </div>
           </div>
         </div>
       </div>
@@ -278,8 +350,8 @@ function BudgetCard({ monthlyBudget, isSettingBudget, setIsSettingBudget, handle
   totalKeluarBulanTerpilih: number; t: ReturnType<typeof useApp>['t']; formatRp: (n: number) => string;
 }) {
   return (
-    <Card className={`rounded-[2.5rem] border-none shadow-lg ring-1 p-8 overflow-hidden relative transition-colors duration-500 ${t.cardBg} ${t.border}`}>
-      <Flex className="mb-8 items-center justify-between">
+    <Card className={`rounded-[2.5rem] border-none shadow-lg ring-1 p-6 overflow-hidden relative transition-colors duration-500 ${t.cardBg} ${t.border}`}>
+      <Flex className="mb-5 items-center justify-between">
         <Title className={`text-[10px] font-bold tracking-[0.3em] leading-none uppercase ${t.textMain}`}>Target anggaran</Title>
         <button onClick={() => setIsSettingBudget(true)} className={`p-2 rounded-xl transition-all shadow-sm ${t.bgSoft} ${t.primaryText} ${t.primaryHover} hover:text-white`}><Settings size={16} /></button>
       </Flex>
