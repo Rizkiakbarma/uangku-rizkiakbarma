@@ -40,8 +40,23 @@ function AppLayout() {
   if (error) {
     return (
       <div className={`min-h-screen ${t.bg} flex flex-col items-center justify-center text-center p-10`}>
-        <p className="text-rose-500 font-bold text-lg mb-2">⚠️ Gagal Memuat Data</p>
-        <p className={`text-sm ${t.textSub}`}>{error}</p>
+        <p className="text-4xl mb-4">⚠️</p>
+        <p className="text-rose-400 font-black text-xl mb-2 tracking-tight">Gagal Memuat Data</p>
+        <p className={`text-sm mb-8 max-w-sm leading-relaxed ${t.textSub}`}>{error}</p>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => window.location.reload()}
+            className={`px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest border transition-all ${t.cardBg} ${t.border} ${t.textSub} hover:opacity-80`}
+          >
+            🔄 Coba Lagi
+          </button>
+          <button
+            onClick={() => window.location.href = '/dashboard?demo=true'}
+            className={`px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all ${t.primary} text-white hover:opacity-80`}
+          >
+            ✨ Lihat Mode Demo
+          </button>
+        </div>
       </div>
     );
   }

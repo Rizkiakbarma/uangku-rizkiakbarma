@@ -138,8 +138,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const idFromUrl = searchParams.get('userid');
+    const demoMode = searchParams.get('demo') === 'true';
+
+    if (demoMode) {
+      setIsDemo(true);
+      _startDemo();
+      return;
+    }
+
     if (!idFromUrl) {
-      navigate('/landing', { replace: true });
+      if (window.location.pathname !== '/landing') {
+        navigate('/landing', { replace: true });
+      }
       return;
     }
     setUserId(idFromUrl);
@@ -147,7 +157,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     fetchGoals(idFromUrl);
     const savedBudget = localStorage.getItem(`budgetin_budget_${idFromUrl}`);
     if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
-  }, [searchParams, navigate, fetchData, fetchGoals]);
+  }, [searchParams, navigate, fetchData, fetchGoals, _startDemo]);
 
   const toggleTheme = useCallback(() => {
     const keys = Object.keys(THEMES) as ThemeId[];
@@ -157,10 +167,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentTheme]);
 
   const startDemo = useCallback(() => {
-    setIsDemo(true);
-    _startDemo();
-    navigate('/dashboard');
-  }, [_startDemo, navigate]);
+    // Navigate dengan param ?demo=true agar instance AppProvider di /dashboard
+    // bisa mendeteksi mode demo lewat URL (state tidak bisa di-pass antar instance)
+    navigate('/dashboard?demo=true');
+  }, [navigate]);
 
   const changeMonth = useCallback((offset: number) => {
     setViewDate(prev => {
