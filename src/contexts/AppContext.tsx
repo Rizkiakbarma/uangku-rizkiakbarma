@@ -147,8 +147,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     fetchGoals(idFromUrl);
     const savedBudget = localStorage.getItem(`budgetin_budget_${idFromUrl}`);
     if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams, navigate, fetchData, fetchGoals]);
 
   const toggleTheme = useCallback(() => {
     const keys = Object.keys(THEMES) as ThemeId[];
