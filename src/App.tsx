@@ -15,10 +15,15 @@ import ZakatCalc from './pages/ZakatCalc';
 /** Redirect dari root: jika ada userid → ke /dashboard, jika tidak → ke /landing */
 function RootRedirect() {
   const [searchParams] = useSearchParams();
-  const userId = searchParams.get('userid');
-  return userId
-    ? <Navigate to={`/dashboard?userid=${userId}`} replace />
-    : <Navigate to="/landing" replace />;
+  const secretKey = searchParams.get('key');
+  const userId = searchParams.get('userid'); // for backwards compatibility temporary
+  const isDemo = searchParams.get('demo') === 'true';
+  
+  if (secretKey) return <Navigate to={`/dashboard?key=${secretKey}`} replace />;
+  if (userId) return <Navigate to={`/dashboard?userid=${userId}`} replace />;
+  if (isDemo) return <Navigate to={`/dashboard?demo=true`} replace />;
+  
+  return <Navigate to="/landing" replace />;
 }
 
 /** Layout utama: Sidebar + Header + konten halaman */

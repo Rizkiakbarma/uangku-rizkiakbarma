@@ -24,6 +24,7 @@ interface AppContextValue {
   toggleTheme: () => void;
   // Auth
   userId: string | null;
+  secretKey: string | null;
   isDemo: boolean;
   startDemo: () => void;
   // Finance data
@@ -114,6 +115,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const t = THEMES[currentTheme] || THEMES.emerald;
 
   const [userId, setUserId] = useState<string | null>(null);
+  const [secretKey, setSecretKey] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
   const [isBarChart, setIsBarChart] = useState(true);
@@ -137,7 +139,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { transactions, setTransactions, goals, setGoals, loading, error, isSyncingGAS, fetchData, fetchGoals, startDemo: _startDemo } = useFinanceData();
 
   useEffect(() => {
-    const idFromUrl = searchParams.get('userid');
+    const keyFromUrl = searchParams.get('key');
     const demoMode = searchParams.get('demo') === 'true';
 
     if (demoMode) {
@@ -146,17 +148,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!idFromUrl) {
+    if (!keyFromUrl) {
       if (window.location.pathname !== '/landing') {
         navigate('/landing', { replace: true });
       }
       return;
     }
-    setUserId(idFromUrl);
-    fetchData(idFromUrl);
-    fetchGoals(idFromUrl);
-    const savedBudget = localStorage.getItem(`budgetin_budget_${idFromUrl}`);
-    if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
+
+    const validateAccess = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users_auth')
+          .select('telegram_id')
+          .eq('secret_key', keyFromUrl)
+          .single();
+          
+        if (error || !data) throw new Error("Akses ditolak: Kunci rahasia tidak valid.");
+
+        const validUserId = data.telegram_id;
+        setSecretKey(keyFromUrl);
+        setUserId(validUserId);
+        fetchData(validUserId);
+        fetchGoals(validUserId);
+        
+        const savedBudget = localStorage.getItem(`budgetin_budget_${validUserId}`);
+        if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
+      } catch (err) {
+        console.error("Auth Error:", err);
+        navigate('/landing', { replace: true });
+      }
+    };
+
+    validateAccess();
   }, [searchParams, navigate, fetchData, fetchGoals, _startDemo]);
 
   const toggleTheme = useCallback(() => {
@@ -435,7 +458,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value: AppContextValue = {
     t, currentTheme, toggleTheme,
-    userId, isDemo, startDemo,
+    userId, secretKey, isDemo, startDemo,
     transactions, goals, loading, error, isSyncingGAS, fetchData, fetchGoals,
     viewDate, changeMonth,
     isBarChart, setIsBarChart,
