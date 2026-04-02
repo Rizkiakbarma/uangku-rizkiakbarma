@@ -17,8 +17,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.6 - BUDGETIN BRANDING & CLEANUP)
- * Fix: Rebranding dari UangKu menjadi BudgetIN dan membersihkan duplikasi kode.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.7 - MoM ANALYTICS)
+ * Fix: Menambahkan Analisis Komparasi Antar Bulan (Month-over-Month).
  */
 
 // 🔥 1. SETUP KONEKSI DUA SUMBER DATA
@@ -399,8 +399,42 @@ export default function App() {
   }, [transactions]);
 
   const filteredByMonth = useMemo(() => transactions.filter(tx => tx.month === viewDate.getMonth() && tx.year === viewDate.getFullYear()), [transactions, viewDate]);
+  
   const totalKeluarBulanTerpilih = useMemo(() => filteredByMonth.filter(tx => tx.type?.toUpperCase() === 'KELUAR').reduce((a, b) => a + Number(b.amount), 0), [filteredByMonth]);
   const totalMasukBulanTerpilih = useMemo(() => filteredByMonth.filter(tx => tx.type?.toUpperCase() === 'MASUK').reduce((a, b) => a + Number(b.amount), 0), [filteredByMonth]);
+
+  // 🔥 LOGIKA BARU: KOMPARASI ANTAR BULAN (Month-over-Month)
+  const previousMonthTotalKeluar = useMemo(() => {
+    const prevDate = new Date(viewDate);
+    prevDate.setMonth(prevDate.getMonth() - 1);
+    const prevMonth = prevDate.getMonth();
+    const prevYear = prevDate.getFullYear();
+
+    return transactions
+      .filter(tx => tx.month === prevMonth && tx.year === prevYear && tx.type?.toUpperCase() === 'KELUAR')
+      .reduce((a, b) => a + Number(b.amount), 0);
+  }, [transactions, viewDate]);
+
+  const previousMonthTotalMasuk = useMemo(() => {
+    const prevDate = new Date(viewDate);
+    prevDate.setMonth(prevDate.getMonth() - 1);
+    const prevMonth = prevDate.getMonth();
+    const prevYear = prevDate.getFullYear();
+
+    return transactions
+      .filter(tx => tx.month === prevMonth && tx.year === prevYear && tx.type?.toUpperCase() === 'MASUK')
+      .reduce((a, b) => a + Number(b.amount), 0);
+  }, [transactions, viewDate]);
+
+  const momExpensePercentage = useMemo(() => {
+    if (previousMonthTotalKeluar === 0) return totalKeluarBulanTerpilih > 0 ? 100 : 0;
+    return ((totalKeluarBulanTerpilih - previousMonthTotalKeluar) / previousMonthTotalKeluar) * 100;
+  }, [totalKeluarBulanTerpilih, previousMonthTotalKeluar]);
+
+  const momIncomePercentage = useMemo(() => {
+    if (previousMonthTotalMasuk === 0) return totalMasukBulanTerpilih > 0 ? 100 : 0;
+    return ((totalMasukBulanTerpilih - previousMonthTotalMasuk) / previousMonthTotalMasuk) * 100;
+  }, [totalMasukBulanTerpilih, previousMonthTotalMasuk]);
 
   const barakahScore = useMemo(() => {
     const charity = filteredByMonth.filter(tx => tx.category?.toUpperCase() === 'SEDEKAH/ZAKAT').reduce((a, b) => a + Number(b.amount), 0);
@@ -549,7 +583,7 @@ export default function App() {
         </nav>
         
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 max-w-4xl mx-auto relative z-10">
-          <Badge className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}>✨ Tersedia Versi 29.6 (BudgetIN Branding)</Badge>
+          <Badge className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}>✨ Tersedia Versi 29.7 (MoM Analytics)</Badge>
           
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.1]">
             Catat Keuangan <br className="hidden md:block"/>
@@ -843,13 +877,31 @@ export default function App() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <Card className={`rounded-[2rem] border-none shadow-sm p-6 lg:p-8 ring-1 hover:translate-y-[-3px] transition-all duration-500 ${t.cardBg} ${t.border}`}>
                 <Flex alignItems="center">
-                  <div><Text className={`text-[10px] font-bold uppercase tracking-widest leading-none mb-3 ${t.textSub}`}>Pemasukan Bulan Ini</Text><Metric className={`font-black text-3xl tracking-tighter ${t.primaryText}`}>{formatRp(totalMasukBulanTerpilih)}</Metric></div>
+                  <div>
+                     <Text className={`text-[10px] font-bold uppercase tracking-widest leading-none mb-3 ${t.textSub}`}>Pemasukan Bulan Ini</Text>
+                     <Metric className={`font-black text-3xl tracking-tighter ${t.primaryText}`}>{formatRp(totalMasukBulanTerpilih)}</Metric>
+                     <div className="mt-3 flex items-center gap-2">
+                       <Badge color={momIncomePercentage >= 0 ? "emerald" : "rose"} variant="soft" className="rounded-lg text-[9px] font-bold uppercase px-2 py-0.5 shadow-sm">
+                         {momIncomePercentage >= 0 ? '⬆ NAIK' : '⬇ TURUN'} {Math.abs(Math.round(momIncomePercentage))}%
+                       </Badge>
+                       <span className={`text-[9px] font-medium ${t.textSub}`}>vs bulan lalu</span>
+                     </div>
+                  </div>
                   <div className={`p-4 text-white rounded-2xl shadow-lg transform hover:rotate-6 transition-transform ${t.primary}`}><ArrowUpRight size={24} strokeWidth={3} /></div>
                 </Flex>
               </Card>
               <Card className={`rounded-[2rem] border-none shadow-sm p-6 lg:p-8 ring-1 hover:translate-y-[-3px] transition-all duration-500 ${t.cardBg} ${t.border}`}>
                 <Flex alignItems="center">
-                  <div><Text className={`text-[10px] font-bold uppercase tracking-widest leading-none mb-3 ${t.textSub}`}>Pengeluaran Bulan Ini</Text><Metric className="text-rose-600 font-black text-3xl tracking-tighter">{formatRp(totalKeluarBulanTerpilih)}</Metric></div>
+                  <div>
+                     <Text className={`text-[10px] font-bold uppercase tracking-widest leading-none mb-3 ${t.textSub}`}>Pengeluaran Bulan Ini</Text>
+                     <Metric className="text-rose-600 font-black text-3xl tracking-tighter">{formatRp(totalKeluarBulanTerpilih)}</Metric>
+                     <div className="mt-3 flex items-center gap-2">
+                       <Badge color={momExpensePercentage > 0 ? "rose" : "emerald"} variant="soft" className="rounded-lg text-[9px] font-bold uppercase px-2 py-0.5 shadow-sm">
+                         {momExpensePercentage > 0 ? '⬆ NAIK' : '⬇ TURUN'} {Math.abs(Math.round(momExpensePercentage))}%
+                       </Badge>
+                       <span className={`text-[9px] font-medium ${t.textSub}`}>vs bulan lalu</span>
+                     </div>
+                  </div>
                   <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-lg shadow-rose-100 transform hover:-rotate-6 transition-transform"><ArrowDownRight size={24} strokeWidth={3} /></div>
                 </Flex>
               </Card>
