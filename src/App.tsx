@@ -395,16 +395,22 @@ export default function App() {
   const stats = useMemo(() => {
     const income = transactions.filter(tx => tx.type?.toUpperCase() === 'MASUK').reduce((a, b) => a + Number(b.amount), 0);
     const expense = transactions.filter(tx => tx.type?.toUpperCase() === 'KELUAR').reduce((a, b) => a + Number(b.amount), 0);
-    const charity = transactions.filter(tx => tx.category?.toUpperCase() === 'SEDEKAH/ZAKAT').reduce((a, b) => a + Number(b.amount), 0);
-    const currentRatio = expense > 0 ? charity / expense : 0;
-    let score = 40;
-    if (currentRatio >= 0.025) score = 100;
-    else if (currentRatio > 0) score = 40 + (currentRatio / 0.025) * 60;
-    return { balance: income - expense, income, expense, barakahScore: Math.round(score) };
+    return { balance: income - expense };
   }, [transactions]);
 
   const filteredByMonth = useMemo(() => transactions.filter(tx => tx.month === viewDate.getMonth() && tx.year === viewDate.getFullYear()), [transactions, viewDate]);
   const totalKeluarBulanTerpilih = useMemo(() => filteredByMonth.filter(tx => tx.type?.toUpperCase() === 'KELUAR').reduce((a, b) => a + Number(b.amount), 0), [filteredByMonth]);
+  const totalMasukBulanTerpilih = useMemo(() => filteredByMonth.filter(tx => tx.type?.toUpperCase() === 'MASUK').reduce((a, b) => a + Number(b.amount), 0), [filteredByMonth]);
+
+  const barakahScore = useMemo(() => {
+    const charity = filteredByMonth.filter(tx => tx.category?.toUpperCase() === 'SEDEKAH/ZAKAT').reduce((a, b) => a + Number(b.amount), 0);
+    const targetRatio = 0.025;
+    const currentRatio = totalKeluarBulanTerpilih > 0 ? charity / totalKeluarBulanTerpilih : 0;
+    let score = 40;
+    if (currentRatio >= targetRatio) score = 100;
+    else if (currentRatio > 0) score = 40 + (currentRatio / targetRatio) * 60;
+    return Math.round(score);
+  }, [filteredByMonth, totalKeluarBulanTerpilih]);
 
   const chartData = useMemo(() => {
     const data = [];
@@ -736,30 +742,30 @@ export default function App() {
                   </div>
 
                   <div className="bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-inner mt-4">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-white/60 mb-1">Total Pengeluaran</p>
-                    <h3 className="text-2xl font-black">{formatRp(totalKeluarBulanTerpilih)}</h3>
-                    {categoryData.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-white/10">
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-white/60 mb-1">Paling Boros Di</p>
-                        <p className="text-lg font-bold">{categoryData[0].name}</p>
-                      </div>
-                    )}
+                <p className="text-[9px] font-bold uppercase tracking-widest text-white/60 mb-1">Total Pengeluaran</p>
+                <h3 className="text-2xl font-black">{formatRp(totalKeluarBulanTerpilih)}</h3>
+                {categoryData.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-white/10">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-white/60 mb-1">Paling Boros Di</p>
+                    <p className="text-lg font-bold">{categoryData[0].name}</p>
                   </div>
-                  
-                  <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20">
-                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center font-black text-xl shrink-0">
-                      {stats.barakahScore}
-                    </div>
-                    <div>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-white/60 mb-0.5">Barakah Score</p>
-                      <p className="text-sm font-bold leading-tight">
-                        {stats.barakahScore > 75 ? "Maa Syaa Allah! Sangat Berkah ✨" : stats.barakahScore > 45 ? "Waspada Israf, perbanyak sedekah!" : "Perlu banyak Muhasabah 🥺"}
-                      </p>
-                    </div>
-                  </div>
+                )}
+              </div>
+              
+              <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center font-black text-xl shrink-0">
+                  {barakahScore}
                 </div>
-                
-                <div className="relative z-10 text-center border-t border-white/20 pt-4 mt-6">
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-white/60 mb-0.5">Barakah Score</p>
+                  <p className="text-sm font-bold leading-tight">
+                    {barakahScore > 75 ? "Maa Syaa Allah! Sangat Berkah ✨" : barakahScore > 45 ? "Waspada Israf, perbanyak sedekah!" : "Perlu banyak Muhasabah 🥺"}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="relative z-10 text-center border-t border-white/20 pt-4 mt-6">
                   <p className="text-[9px] font-bold tracking-widest uppercase text-white/60">Catat keuangan semudah chat</p>
                   <p className="text-xs font-black tracking-widest uppercase mt-1">lynk.id/rizkiakbarma</p>
                 </div>
@@ -835,21 +841,21 @@ export default function App() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <Card className={`rounded-[2rem] border-none shadow-sm p-6 lg:p-8 ring-1 hover:translate-y-[-3px] transition-all duration-500 ${t.cardBg} ${t.border}`}>
-                    <Flex alignItems="center">
-                      <div><Text className={`text-[10px] font-bold uppercase tracking-widest leading-none mb-3 ${t.textSub}`}>Pemasukan</Text><Metric className={`font-black text-3xl tracking-tighter ${t.primaryText}`}>{formatRp(stats.income)}</Metric></div>
-                      <div className={`p-4 text-white rounded-2xl shadow-lg transform hover:rotate-6 transition-transform ${t.primary}`}><ArrowUpRight size={24} strokeWidth={3} /></div>
-                    </Flex>
-                  </Card>
-                  <Card className={`rounded-[2rem] border-none shadow-sm p-6 lg:p-8 ring-1 hover:translate-y-[-3px] transition-all duration-500 ${t.cardBg} ${t.border}`}>
-                    <Flex alignItems="center">
-                      <div><Text className={`text-[10px] font-bold uppercase tracking-widest leading-none mb-3 ${t.textSub}`}>Pengeluaran</Text><Metric className="text-rose-600 font-black text-3xl tracking-tighter">{formatRp(stats.expense)}</Metric></div>
-                      <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-lg shadow-rose-100 transform hover:-rotate-6 transition-transform"><ArrowDownRight size={24} strokeWidth={3} /></div>
-                    </Flex>
-                  </Card>
-                </div>
+              <Card className={`rounded-[2rem] border-none shadow-sm p-6 lg:p-8 ring-1 hover:translate-y-[-3px] transition-all duration-500 ${t.cardBg} ${t.border}`}>
+                <Flex alignItems="center">
+                  <div><Text className={`text-[10px] font-bold uppercase tracking-widest leading-none mb-3 ${t.textSub}`}>Pemasukan Bulan Ini</Text><Metric className={`font-black text-3xl tracking-tighter ${t.primaryText}`}>{formatRp(totalMasukBulanTerpilih)}</Metric></div>
+                  <div className={`p-4 text-white rounded-2xl shadow-lg transform hover:rotate-6 transition-transform ${t.primary}`}><ArrowUpRight size={24} strokeWidth={3} /></div>
+                </Flex>
+              </Card>
+              <Card className={`rounded-[2rem] border-none shadow-sm p-6 lg:p-8 ring-1 hover:translate-y-[-3px] transition-all duration-500 ${t.cardBg} ${t.border}`}>
+                <Flex alignItems="center">
+                  <div><Text className={`text-[10px] font-bold uppercase tracking-widest leading-none mb-3 ${t.textSub}`}>Pengeluaran Bulan Ini</Text><Metric className="text-rose-600 font-black text-3xl tracking-tighter">{formatRp(totalKeluarBulanTerpilih)}</Metric></div>
+                  <div className="p-4 bg-rose-600 text-white rounded-2xl shadow-lg shadow-rose-100 transform hover:-rotate-6 transition-transform"><ArrowDownRight size={24} strokeWidth={3} /></div>
+                </Flex>
+              </Card>
+            </div>
 
-                <div className="flex flex-col xl:flex-row gap-6">
+            <div className="flex flex-col xl:flex-row gap-6">
                   <div className="flex-1 min-w-0 space-y-6">
                     <Card className={`rounded-[2.5rem] border-none shadow-xl p-6 lg:p-8 ring-1 transition-colors duration-500 overflow-hidden ${t.cardBg} ${t.border}`}>
                       <Flex className="mb-2 items-start justify-between">
@@ -892,29 +898,29 @@ export default function App() {
                   </div>
 
                   <aside className="w-full xl:w-96 shrink-0 space-y-6">
-                    <Card className={`rounded-[2.5rem] border-none shadow-xl p-8 ring-1 relative overflow-hidden group hover:shadow-2xl transition-all duration-500 ${t.cardBg} ${t.border}`}>
-                      <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><HeartHandshake size={140} className={t.textMain} /></div>
-                      <Title className={`text-[10px] font-bold tracking-[0.3em] uppercase mb-8 border-l-4 pl-3 leading-none ${t.textMain} ${t.primaryBorder}`}>Barakah Score</Title>
-                      
-                      <div className="flex flex-col items-center text-center">
-                        <div className="relative mb-6 flex items-center justify-center">
-                          <svg className="w-32 h-32 transform -rotate-90">
-                            <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="10" fill="transparent" className={t.bgSoft} />
-                            <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="10" fill="transparent" strokeDasharray={364.4} strokeDashoffset={364.4 - (stats.barakahScore / 100) * 364.4} className={`transition-all duration-1000 ease-out ${stats.barakahScore > 75 ? 'text-emerald-500' : stats.barakahScore > 45 ? 'text-amber-500' : 'text-rose-500'}`} />
-                          </svg>
-                          <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className={`text-3xl font-black leading-none ${t.textMain}`}>{stats.barakahScore}</span>
-                            <span className={`text-[8px] font-bold uppercase tracking-widest mt-1 ${t.textSub}`}>Point</span>
-                          </div>
-                        </div>
-                        <Badge color={stats.barakahScore > 75 ? "emerald" : stats.barakahScore > 45 ? "amber" : "rose"} variant="solid" className="font-black rounded-lg text-[9px] uppercase px-4 py-1 mb-4 shadow-sm">
-                          {stats.barakahScore > 75 ? "Maa Syaa Allah" : stats.barakahScore > 45 ? "Waspada Israf" : "Perlu Muhasabah"}
-                        </Badge>
-                        <Text className={`text-[11px] font-medium italic px-4 leading-relaxed ${t.textSub}`}>
-                          {stats.barakahScore > 75 ? `"Arus kasmu sangat berkah! Porsi sedekah mencapai target 2,5%."` : stats.barakahScore > 45 ? `"Ayo tingkatkan porsi berbagi agar hartamu makin tenang."` : `"Muhasabah diri, jangan lupakan hak sesama di setiap rupiah jajanmu."`}
-                        </Text>
+                <Card className={`rounded-[2.5rem] border-none shadow-xl p-8 ring-1 relative overflow-hidden group hover:shadow-2xl transition-all duration-500 ${t.cardBg} ${t.border}`}>
+                  <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000"><HeartHandshake size={140} className={t.textMain} /></div>
+                  <Title className={`text-[10px] font-bold tracking-[0.3em] uppercase mb-8 border-l-4 pl-3 leading-none ${t.textMain} ${t.primaryBorder}`}>Barakah Score</Title>
+                  
+                  <div className="flex flex-col items-center text-center">
+                    <div className="relative mb-6 flex items-center justify-center">
+                      <svg className="w-32 h-32 transform -rotate-90">
+                        <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="10" fill="transparent" className={t.bgSoft} />
+                        <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="10" fill="transparent" strokeDasharray={364.4} strokeDashoffset={364.4 - (barakahScore / 100) * 364.4} className={`transition-all duration-1000 ease-out ${barakahScore > 75 ? 'text-emerald-500' : barakahScore > 45 ? 'text-amber-500' : 'text-rose-500'}`} />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className={`text-3xl font-black leading-none ${t.textMain}`}>{barakahScore}</span>
+                        <span className={`text-[8px] font-bold uppercase tracking-widest mt-1 ${t.textSub}`}>Point</span>
+                      </div>
+                    </div>
+                    <Badge color={barakahScore > 75 ? "emerald" : barakahScore > 45 ? "amber" : "rose"} variant="solid" className="font-black rounded-lg text-[9px] uppercase px-4 py-1 mb-4 shadow-sm">
+                      {barakahScore > 75 ? "Maa Syaa Allah" : barakahScore > 45 ? "Waspada Israf" : "Perlu Muhasabah"}
+                    </Badge>
+                    <Text className={`text-[11px] font-medium italic px-4 leading-relaxed ${t.textSub}`}>
+                      {barakahScore > 75 ? `"Arus kasmu sangat berkah! Porsi sedekah mencapai target 2,5%."` : barakahScore > 45 ? `"Ayo tingkatkan porsi berbagi agar hartamu makin tenang."` : `"Muhasabah diri, jangan lupakan hak sesama di setiap rupiah jajanmu."`}
+                    </Text>
 
-                        {/* 🔥 TOMBOL IG STORY GENERATOR */}
+                    {/* 🔥 TOMBOL IG STORY GENERATOR */}
                         <button 
                           onClick={() => setIsStoryModalOpen(true)}
                           className={`mt-6 w-full py-3.5 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${t.primaryLight} ${t.primaryText} hover:opacity-80 active:scale-95`}
