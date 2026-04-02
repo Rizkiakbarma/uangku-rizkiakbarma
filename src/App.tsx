@@ -8,7 +8,7 @@ import {
   Coins, HeartHandshake, ArrowUpRight, ArrowDownRight, Zap,
   ChevronRight, ChevronLeft, Calendar, Menu, Settings, LogOut,
   Sparkles, BarChart3, TrendingUp, LineChart as LineChartIcon,
-  Bot, MessageSquare, Download, Palette
+  Bot, MessageSquare, Download, Palette, Share2, Camera // 🔥 Import Share2 & Camera
 } from 'lucide-react';
 
 import {
@@ -17,8 +17,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.4 - EXTENDED THEME ENGINE)
- * Fix: Menambahkan Tema Rainbow (Mejikuhibiniu), Vintage, dan Modern Minimalist.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.5 - IG STORY GENERATOR)
+ * Fix: Menambahkan fitur IG Story / Spotify Wrapped Generator untuk marketing viral.
  */
 
 // 🔥 1. SETUP KONEKSI DUA SUMBER DATA
@@ -123,7 +123,7 @@ const THEMES = {
     chartColors: ["rose-800", "rose-400", "emerald-400", "amber-400", "slate-800", "blue-400", "fuchsia-400", "cyan-400"],
     chartHex: ["#9f1239", "#fb7185", "#34d399", "#fbbf24", "#1e293b", "#60a5fa", "#e879f9", "#22d3ee"]
   },
-  rainbow: { // 🌈 TEMA BARU: PASTEL MEJIKUHIBINIU
+  rainbow: { 
     id: 'rainbow',
     bg: 'bg-slate-50',
     cardBg: 'bg-white',
@@ -152,7 +152,7 @@ const THEMES = {
     chartColors: ["rose-400", "orange-400", "amber-400", "emerald-400", "cyan-400", "blue-400", "indigo-400", "fuchsia-400"],
     chartHex: ["#fb7185", "#fb923c", "#fbbf24", "#34d399", "#22d3ee", "#60a5fa", "#818cf8", "#e879f9"]
   },
-  vintage: { // 🕰️ TEMA BARU: VINTAGE / RETRO WARMTH
+  vintage: { 
     id: 'vintage',
     bg: 'bg-stone-100',
     cardBg: 'bg-stone-50',
@@ -181,7 +181,7 @@ const THEMES = {
     chartColors: ["amber-800", "orange-700", "stone-600", "yellow-600", "red-800", "amber-600", "stone-500", "orange-800"],
     chartHex: ["#92400e", "#c2410c", "#57534e", "#ca8a04", "#991b1b", "#d97706", "#78716c", "#9a3412"]
   },
-  modern: { // 🕶️ TEMA BARU: MODERN MONOCHROME
+  modern: { 
     id: 'modern',
     bg: 'bg-zinc-50',
     cardBg: 'bg-white',
@@ -214,7 +214,7 @@ const THEMES = {
 
 export default function App() {
   const [currentTheme, setCurrentTheme] = useState(localStorage.getItem('budgetin_theme') || 'emerald');
-  const t = THEMES[currentTheme] || THEMES['emerald']; // Fallback aman
+  const t = THEMES[currentTheme] || THEMES['emerald']; 
 
   const [activeTab, setActiveTab] = useState(localStorage.getItem('budgetin_last_tab') || 'overview');
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -240,6 +240,10 @@ export default function App() {
   const [isDeletingGoal, setIsDeletingGoal] = useState(false);
   const [monthlyBudget, setMonthlyBudget] = useState(5000000);
   const [isSettingBudget, setIsSettingBudget] = useState(false);
+
+  // 🔥 STATE IG STORY GENERATOR
+  const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   const toggleTheme = () => {
     const themeKeys = Object.keys(THEMES);
@@ -470,6 +474,40 @@ export default function App() {
     setIsExportModalOpen(false); 
   };
 
+  // 🔥 FUNGSI IG STORY GENERATOR (HTML2CANVAS DYNAMIC LOAD)
+  const handleDownloadStory = () => {
+    setIsCapturing(true);
+    if (!window.html2canvas) {
+      const script = document.createElement('script');
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+      script.onload = () => executeCapture();
+      document.body.appendChild(script);
+    } else {
+      executeCapture();
+    }
+  };
+
+  const executeCapture = () => {
+    const element = document.getElementById('story-card-content');
+    if (element && window.html2canvas) {
+      // Tunggu font & animasi render sejenak
+      setTimeout(() => {
+        window.html2canvas(element, { scale: 3, backgroundColor: null, useCORS: true }).then(canvas => {
+          const link = document.createElement('a');
+          link.download = `UangKu_Story_${new Date().getTime()}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+          setIsCapturing(false);
+          setIsStoryModalOpen(false);
+        }).catch((err) => {
+          console.error(err);
+          alert("Gagal membuat gambar. Coba screenshot manual.");
+          setIsCapturing(false);
+        });
+      }, 500);
+    }
+  };
+
   const advisorInsight = useMemo(() => {
     const budgetUsedPercent = monthlyBudget > 0 ? (totalKeluarBulanTerpilih / monthlyBudget) * 100 : 0;
     const topCategory = categoryData.length > 0 ? categoryData[0] : null;
@@ -505,7 +543,7 @@ export default function App() {
         </nav>
         
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 max-w-4xl mx-auto relative z-10">
-          <Badge className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}>✨ Tersedia Versi 29.4 (Theme Engine Stable)</Badge>
+          <Badge className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}>✨ Tersedia Versi 29.5 (Story Share)</Badge>
           
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.1]">
             Catat Keuangan <br className="hidden md:block"/>
@@ -583,7 +621,7 @@ export default function App() {
           <div className="flex items-center gap-4 mb-8 pl-2">
             <div className={`w-10 h-10 ${t.primary} rounded-xl flex items-center justify-center shadow-md shrink-0`}><Activity className="text-white" size={20} strokeWidth={3} /></div>
             <div>
-               <h1 className={`text-lg font-black tracking-tighter leading-none uppercase ${t.textMain}`}>BudgetIN</h1>
+               <h1 className={`text-lg font-black tracking-tighter leading-none uppercase ${t.textMain}`}>UangKu</h1>
                <Badge className={`mt-1 text-[8px] font-black uppercase px-2 py-0 border ${t.primaryLight} ${t.primaryText} ${t.border}`}>Versi Pro</Badge>
             </div>
           </div>
@@ -664,6 +702,75 @@ export default function App() {
                   <button onClick={handleExportCSV} className={`flex-1 py-4 ${t.primary} ${t.primaryHover} text-white rounded-xl font-bold text-[11px] uppercase tracking-widest shadow-xl transition-colors`}>Mulai Unduh</button>
                 </div>
              </Card>
+          </div>
+        )}
+
+        {/* 🔥 MODAL IG STORY GENERATOR */}
+        {isStoryModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[500] flex flex-col items-center justify-center p-4 animate-in fade-in zoom-in-95">
+             <div className="flex justify-end w-full max-w-[320px] mb-4">
+                <button onClick={() => setIsStoryModalOpen(false)} className="text-white hover:text-rose-400 font-bold bg-white/10 p-2 rounded-full backdrop-blur-md"><Trash2 size={20}/></button>
+             </div>
+             
+             {/* KARTU STORY (Rasio 9:16) */}
+             <div 
+               id="story-card-content" 
+               className={`relative w-[320px] h-[568px] rounded-[2.5rem] overflow-hidden bg-gradient-to-br ${t.primaryGradient} text-white shadow-2xl p-8 flex flex-col justify-between`}
+             >
+                {/* Decorative background overlay */}
+                <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+                <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-black/20 rounded-full blur-2xl"></div>
+                
+                <div className="relative z-10 space-y-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Activity className="w-5 h-5 text-white" />
+                    <span className="font-black tracking-tighter uppercase text-sm">UANGKU PRO</span>
+                  </div>
+                  
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/70 mb-1">Rangkuman Bulan</p>
+                    <h2 className="text-3xl font-black leading-tight">{new Date(viewDate).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</h2>
+                  </div>
+
+                  <div className="bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20 shadow-inner mt-4">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-white/60 mb-1">Total Pengeluaran</p>
+                    <h3 className="text-2xl font-black">{formatRp(totalKeluarBulanTerpilih)}</h3>
+                    {categoryData.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-white/10">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-white/60 mb-1">Paling Boros Di</p>
+                        <p className="text-lg font-bold">{categoryData[0].name}</p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md rounded-3xl p-5 border border-white/20">
+                    <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center font-black text-xl shrink-0">
+                      {stats.barakahScore}
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-white/60 mb-0.5">Barakah Score</p>
+                      <p className="text-sm font-bold leading-tight">
+                        {stats.barakahScore > 75 ? "Maa Syaa Allah! Sangat Berkah ✨" : stats.barakahScore > 45 ? "Waspada Israf, perbanyak sedekah!" : "Perlu banyak Muhasabah 🥺"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="relative z-10 text-center border-t border-white/20 pt-4 mt-6">
+                  <p className="text-[9px] font-bold tracking-widest uppercase text-white/60">Catat keuangan semudah chat</p>
+                  <p className="text-xs font-black tracking-widest uppercase mt-1">lynk.id/rizkiakbarma</p>
+                </div>
+             </div>
+
+             {/* TOMBOL DOWNLOAD */}
+             <button 
+                onClick={handleDownloadStory} 
+                disabled={isCapturing}
+                className="mt-8 w-full max-w-[320px] py-4 bg-white text-slate-900 rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-2 hover:bg-slate-100 transition-all active:scale-95"
+             >
+                {isCapturing ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Camera className="w-5 h-5"/> Unduh & Share Sekarang</>}
+             </button>
+             <p className="text-white/50 text-[10px] mt-4 font-medium italic text-center max-w-[300px]">Akan diunduh sebagai gambar. Pas untuk IG Story atau WhatsApp Status.</p>
           </div>
         )}
 
@@ -804,6 +911,14 @@ export default function App() {
                         <Text className={`text-[11px] font-medium italic px-4 leading-relaxed ${t.textSub}`}>
                           {stats.barakahScore > 75 ? `"Arus kasmu sangat berkah! Porsi sedekah mencapai target 2,5%."` : stats.barakahScore > 45 ? `"Ayo tingkatkan porsi berbagi agar hartamu makin tenang."` : `"Muhasabah diri, jangan lupakan hak sesama di setiap rupiah jajanmu."`}
                         </Text>
+
+                        {/* 🔥 TOMBOL IG STORY GENERATOR */}
+                        <button 
+                          onClick={() => setIsStoryModalOpen(true)}
+                          className={`mt-6 w-full py-3.5 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${t.primaryLight} ${t.primaryText} hover:opacity-80 active:scale-95`}
+                        >
+                          <Share2 className="w-4 h-4" /> Pamerkan ke IG Story
+                        </button>
                       </div>
                     </Card>
                    
