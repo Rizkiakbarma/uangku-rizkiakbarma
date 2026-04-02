@@ -9,7 +9,7 @@ import {
   ChevronRight, ChevronLeft, Calendar, Menu, Settings, LogOut,
   Sparkles, BarChart3, TrendingUp, LineChart as LineChartIcon,
   Bot, MessageSquare, Download, Palette, Share2, Camera,
-  Trophy, ShieldCheck, Crown, Award, Landmark, Info // 🔥 Import Landmark & Info
+  Trophy, ShieldCheck, Crown, Award, Landmark, Info, Wallet // 🔥 FIX: Import Wallet ditambahkan di sini
 } from 'lucide-react';
 
 import {
@@ -18,8 +18,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V30.0 - COMPREHENSIVE ZAKAT CALCULATOR)
- * Fix: Upgrade Menu Zakat menjadi Kalkulator Komprehensif dengan UI/UX Profesional.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V30.1 - COMPREHENSIVE ZAKAT FIX)
+ * Fix: Memperbaiki Whitescreen akibat missing import ikon 'Wallet'.
  */
 
 // 🔥 1. SETUP KONEKSI DUA SUMBER DATA
@@ -474,6 +474,18 @@ export default function App() {
     return Object.keys(cats).map(name => ({ name, amount: cats[name] })).sort((a,b) => b.amount - a.amount);
   }, [filteredByMonth]);
 
+  const leakageInfo = useMemo(() => {
+    const counts: any = filteredByMonth.filter(tx => tx.type === 'KELUAR').reduce((acc: any, curr: any) => {
+      acc[curr.category] = (acc[curr.category] || 0) + 1; return acc;
+    }, {});
+    const mostFreq = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+    return { name: mostFreq || "N/A", count: counts[mostFreq] || 0 };
+  }, [filteredByMonth]);
+
+  const emasHarga = 1350000;
+  const nishabTahunan = 85 * emasHarga;
+  const wajibZakat = stats.balance >= nishabTahunan;
+
   const formatRp = (num: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num || 0);
   const axisFormatter = (num: number) => new Intl.NumberFormat('id-ID', { notation: 'compact', compactDisplay: 'short' }).format(num);
 
@@ -598,7 +610,7 @@ export default function App() {
         </nav>
         
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 max-w-4xl mx-auto relative z-10">
-          <Badge className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}>✨ Tersedia Versi 30.0 (Zakat Engine)</Badge>
+          <Badge className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}>✨ Tersedia Versi 30.1 (Zakat Engine)</Badge>
           
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.1]">
             Catat Keuangan <br className="hidden md:block"/>
