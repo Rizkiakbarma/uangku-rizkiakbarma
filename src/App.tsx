@@ -8,7 +8,7 @@ import {
   Coins, HeartHandshake, ArrowUpRight, ArrowDownRight, Zap,
   ChevronRight, ChevronLeft, Calendar, Menu, Settings, LogOut,
   Sparkles, BarChart3, TrendingUp, LineChart as LineChartIcon,
-  Bot, MessageSquare // 🔥 Import MessageSquare untuk icon Landing Page
+  Bot, MessageSquare, Download // 🔥 Import Download untuk icon Export
 } from 'lucide-react';
 
 import {
@@ -17,8 +17,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V28.0 - SAAS LANDING PAGE)
- * Fix: Menambahkan Landing Page Jualan (Front-End) untuk pengunjung publik tanpa merusak Dashboard utama.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.0 - EXPORT LAPORAN BULANAN)
+ * Fix: Menambahkan fitur download riwayat transaksi bulanan berformat CSV (Excel).
  */
 
 // 🔥 1. SETUP KONEKSI DUA SUMBER DATA
@@ -282,6 +282,37 @@ export default function App() {
     setIsSettingBudget(false);
   };
 
+  // 🔥 FUNGSI EXPORT CSV LAPORAN BULANAN
+  const handleExportCSV = () => {
+    if (filteredByMonth.length === 0) {
+      alert("Tidak ada data transaksi untuk diekspor pada bulan ini.");
+      return;
+    }
+    
+    // Header Kolom Excel
+    const headers = ["Tanggal", "Keterangan", "Kategori", "Tipe", "Nominal (Rp)"];
+    
+    // Looping data transaksi yang ada di bulan terpilih
+    const csvRows = filteredByMonth.map(t => {
+      // Membersihkan karakter kutip ganda agar format CSV tidak rusak
+      const safeDesc = t.desc ? `"${t.desc.replace(/"/g, '""')}"` : '""';
+      return `${t.dateStr},${safeDesc},${t.category},${t.type},${t.amount}`;
+    });
+    
+    // Gabungkan Header dan Baris
+    const csvString = [headers.join(","), ...csvRows].join("\n");
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    
+    // Proses Auto-Download
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Laporan_Keuangan_UangKu_${viewDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }).replace(/ /g, '_')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const advisorInsight = useMemo(() => {
     const budgetUsedPercent = monthlyBudget > 0 ? (totalKeluarBulanTerpilih / monthlyBudget) * 100 : 0;
     const topCategory = categoryData.length > 0 ? categoryData[0] : null;
@@ -330,7 +361,7 @@ export default function App() {
         
         {/* Hero Section */}
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 max-w-4xl mx-auto relative z-10">
-          <Badge color="emerald" variant="soft" className="mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border border-emerald-100">✨ Tersedia Versi 28.0 (SaaS Stable)</Badge>
+          <Badge color="emerald" variant="soft" className="mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border border-emerald-100">✨ Tersedia Versi 29.0 (SaaS Stable)</Badge>
           
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-slate-900 mb-8 leading-[1.1]">
             Catat Keuangan <br className="hidden md:block"/>
@@ -343,7 +374,7 @@ export default function App() {
           
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
             <button onClick={() => window.open('https://lynk.id/rizkiakbarma', '_blank')} className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-emerald-200 flex items-center justify-center gap-2 group">
-              Dapatkan Akses <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"/>
+              Dapatkan Akses Sekarang <ArrowUpRight className="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"/>
             </button>
             <button onClick={startDemo} className="px-8 py-4 bg-white hover:bg-slate-50 text-slate-700 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-sm border border-slate-200 flex items-center justify-center gap-2">
               Lihat Demo Dashboard
@@ -525,12 +556,24 @@ export default function App() {
                     <Text className="text-slate-400 font-bold uppercase tracking-[0.3em] text-[9px] mb-2 flex items-center gap-2"><div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div> Total saldo aktif</Text>
                     <h2 className="text-4xl lg:text-5xl font-black tracking-tighter text-slate-900 drop-shadow-md">{formatRp(stats.balance)}</h2>
                   </div>
+                  
                   <div className="flex items-center bg-slate-50/80 p-1.5 rounded-2xl border border-slate-100">
                     <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-600"><ChevronLeft size={18} strokeWidth={3}/></button>
                     <div className="px-5 text-center min-w-[120px]">
                         <p className="text-[11px] font-bold text-slate-800 uppercase tracking-widest">{viewDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}</p>
                     </div>
                     <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-600"><ChevronRight size={18} strokeWidth={3}/></button>
+                    
+                    <div className="w-[1px] h-6 bg-slate-200 mx-1"></div>
+                    
+                    {/* 🔥 TOMBOL EXPORT CSV LAPORAN BULANAN (OVERVIEW) */}
+                    <button 
+                      onClick={handleExportCSV} 
+                      className="p-2 hover:bg-emerald-100 text-slate-400 hover:text-emerald-700 rounded-xl transition-all" 
+                      title="Export Laporan Bulanan (CSV)"
+                    >
+                        <Download size={18} strokeWidth={3}/>
+                    </button>
                   </div>
                 </div>
 
@@ -773,9 +816,20 @@ export default function App() {
                   <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-slate-100 overflow-hidden bg-white p-0">
                     <div className="p-6 lg:p-8 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-6 bg-slate-50/50">
                       <Title className="font-black text-slate-900 text-2xl tracking-tighter">Riwayat Mutasi</Title>
-                      <div className="relative w-full md:w-[320px]">
-                          <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                          <input type="text" placeholder="Cari keterangan..." className="w-full pl-12 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                      
+                      {/* 🔥 TOMBOL EXPORT CSV DAN PENCARIAN DI TAB RIWAYAT */}
+                      <div className="flex w-full md:w-auto gap-3 items-center">
+                        <div className="relative w-full md:w-[320px]">
+                            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                            <input type="text" placeholder="Cari keterangan..." className="w-full pl-12 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                        </div>
+                        <button 
+                          onClick={handleExportCSV} 
+                          className="shrink-0 p-3.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-2xl transition-all shadow-sm border border-emerald-100" 
+                          title="Export CSV Laporan Bulanan"
+                        >
+                          <Download size={18} strokeWidth={2.5}/>
+                        </button>
                       </div>
                     </div>
                     <div className="overflow-x-auto max-h-[650px] custom-scrollbar">
