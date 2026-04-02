@@ -17,8 +17,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.0 - EXPORT LAPORAN BULANAN)
- * Fix: Menambahkan fitur download riwayat transaksi bulanan berformat CSV (Excel).
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.1 - CUSTOM EXPORT REPORT)
+ * Fix: Menambahkan Modal Opsi Unduh Laporan Bulanan & Teks Keterangan Tombol.
  */
 
 // 🔥 1. SETUP KONEKSI DUA SUMBER DATA
@@ -45,9 +45,12 @@ export default function App() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
   
-  // 🔥 STATE BARU UNTUK MENAMPILKAN LANDING PAGE JUALAN
-  const [showLanding, setShowLanding] = useState(false);
+  // 🔥 STATE UNTUK EXPORT LAPORAN
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportMonth, setExportMonth] = useState(new Date().getMonth());
+  const [exportYear, setExportYear] = useState(new Date().getFullYear());
 
+  const [showLanding, setShowLanding] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
   const [isBarChart, setIsBarChart] = useState(true);
@@ -186,7 +189,6 @@ export default function App() {
   useEffect(() => {
     const idFromUrl = new URLSearchParams(window.location.search).get('userid');
     
-    // 🔥 JIKA TIDAK ADA ID, TAMPILKAN LANDING PAGE JUALAN
     if (!idFromUrl) {
       setShowLanding(true);
       setLoading(false); 
@@ -202,7 +204,6 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem('budgetin_last_tab', activeTab); }, [activeTab]);
 
-  // 🔥 FUNGSI UNTUK MEMULAI DEMO DARI LANDING PAGE
   const startDemo = () => {
     setShowLanding(false);
     setIsDemo(true);
@@ -282,35 +283,36 @@ export default function App() {
     setIsSettingBudget(false);
   };
 
-  // 🔥 FUNGSI EXPORT CSV LAPORAN BULANAN
+  // 🔥 FUNGSI EXPORT CSV LAPORAN BULANAN (DENGAN OPSI BULAN SPESIFIK)
   const handleExportCSV = () => {
-    if (filteredByMonth.length === 0) {
-      alert("Tidak ada data transaksi untuk diekspor pada bulan ini.");
+    // Filter data berdasarkan bulan dan tahun yang DIPILIH DI MODAL, bukan viewDate
+    const dataToExport = transactions.filter(t => t.month === exportMonth && t.year === exportYear);
+
+    if (dataToExport.length === 0) {
+      alert("Tidak ada data transaksi untuk diekspor pada bulan dan tahun ini.");
       return;
     }
     
-    // Header Kolom Excel
     const headers = ["Tanggal", "Keterangan", "Kategori", "Tipe", "Nominal (Rp)"];
     
-    // Looping data transaksi yang ada di bulan terpilih
-    const csvRows = filteredByMonth.map(t => {
-      // Membersihkan karakter kutip ganda agar format CSV tidak rusak
+    const csvRows = dataToExport.map(t => {
       const safeDesc = t.desc ? `"${t.desc.replace(/"/g, '""')}"` : '""';
       return `${t.dateStr},${safeDesc},${t.category},${t.type},${t.amount}`;
     });
     
-    // Gabungkan Header dan Baris
     const csvString = [headers.join(","), ...csvRows].join("\n");
     const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     
-    // Proses Auto-Download
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Laporan_Keuangan_UangKu_${viewDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' }).replace(/ /g, '_')}.csv`;
+    const monthName = new Date(exportYear, exportMonth).toLocaleDateString('id-ID', { month: 'long' });
+    link.download = `Laporan_Keuangan_UangKu_${monthName}_${exportYear}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    setIsExportModalOpen(false); // Tutup modal setelah berhasil unduh
   };
 
   const advisorInsight = useMemo(() => {
@@ -350,7 +352,6 @@ export default function App() {
   if (showLanding) {
     return (
       <div className="min-h-screen bg-[#FCFCFC] font-sans text-slate-900 selection:bg-emerald-100 flex flex-col">
-        {/* Navbar Landing Page */}
         <nav className="px-6 py-5 flex justify-between items-center max-w-7xl mx-auto w-full relative z-10">
           <div className="flex items-center gap-3">
             <div className="bg-emerald-600 p-2.5 rounded-xl shadow-lg shadow-emerald-200"><Activity className="text-white w-5 h-5"/></div>
@@ -359,9 +360,8 @@ export default function App() {
           <button onClick={() => window.open('https://lynk.id/rizkiakbarma', '_blank')} className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md">Beli Akses</button>
         </nav>
         
-        {/* Hero Section */}
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 max-w-4xl mx-auto relative z-10">
-          <Badge color="emerald" variant="soft" className="mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border border-emerald-100">✨ Tersedia Versi 29.0 (SaaS Stable)</Badge>
+          <Badge color="emerald" variant="soft" className="mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border border-emerald-100">✨ Tersedia Versi 29.1 (SaaS Stable)</Badge>
           
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-slate-900 mb-8 leading-[1.1]">
             Catat Keuangan <br className="hidden md:block"/>
@@ -382,7 +382,6 @@ export default function App() {
           </div>
         </main>
 
-        {/* Features Section */}
         <section className="bg-white py-24 border-t border-slate-100 relative z-10">
           <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-12">
             <div className="text-center md:text-left bg-slate-50/50 p-8 rounded-[2rem] border border-slate-100 transition-all hover:shadow-lg">
@@ -403,12 +402,10 @@ export default function App() {
           </div>
         </section>
 
-        {/* Footer Landing */}
         <footer className="bg-slate-900 py-10 text-center relative z-10">
           <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Made with ❤️ by Rizkiakbarma. © 2026 UangKu Pro.</p>
         </footer>
 
-        {/* Background Decorations */}
         <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-emerald-500/10 blur-[120px] rounded-full pointer-events-none z-0"></div>
         <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-teal-500/10 blur-[100px] rounded-full pointer-events-none z-0"></div>
       </div>
@@ -507,6 +504,47 @@ export default function App() {
           </div>
         )}
 
+        {/* 🔥 MODAL UNDUH LAPORAN CSV */}
+        {isExportModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
+             <Card className="max-w-sm w-full p-8 rounded-[2.5rem] shadow-2xl border-none animate-in zoom-in-95">
+                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                  <Download className="w-8 h-8" strokeWidth={2.5} />
+                </div>
+                <h3 className="text-xl font-black text-center mb-2 tracking-tight">Unduh Laporan</h3>
+                <p className="text-sm text-slate-500 text-center mb-8 font-medium leading-relaxed">Pilih periode bulan dan tahun laporan (Excel/CSV) yang ingin kamu unduh.</p>
+
+                <div className="flex gap-4 mb-8">
+                  <select 
+                    value={exportMonth} 
+                    onChange={(e) => setExportMonth(parseInt(e.target.value))}
+                    className="flex-1 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    {Array.from({length: 12}).map((_, i) => (
+                      <option key={i} value={i}>{new Date(0, i).toLocaleDateString('id-ID', { month: 'long' })}</option>
+                    ))}
+                  </select>
+                  <select 
+                    value={exportYear} 
+                    onChange={(e) => setExportYear(parseInt(e.target.value))}
+                    className="w-28 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    {[viewDate.getFullYear() - 1, viewDate.getFullYear(), viewDate.getFullYear() + 1].map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-3">
+                  <button onClick={() => setIsExportModalOpen(false)} className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-colors">Batal</button>
+                  <button onClick={handleExportCSV} className="flex-1 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-emerald-200 transition-colors">
+                    Mulai Unduh
+                  </button>
+                </div>
+             </Card>
+          </div>
+        )}
+
         <header className="sticky top-0 z-50 bg-white/60 backdrop-blur-xl px-5 lg:px-8 py-3 flex justify-between items-center border-b border-slate-100/60 shrink-0">
           <div className="flex items-center gap-4">
              <button onClick={() => setIsMobileSidebarOpen(true)} className="lg:hidden p-2 bg-white rounded-lg border border-slate-100 text-slate-500 hover:text-emerald-600"><Menu size={20}/></button>
@@ -530,7 +568,6 @@ export default function App() {
             {activeTab === 'overview' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                
-                {/* 🔥 FITUR BARU: NEURAL ADVISOR (ROASTING MODE) */}
                 <div className={`relative p-6 lg:p-8 rounded-[2.5rem] border shadow-md overflow-hidden flex items-center gap-5 transition-all bg-slate-900 ${advisorInsight.theme.border}`}>
                   <div className="absolute -right-6 -top-10 opacity-5 pointer-events-none">
                     <Bot size={180} className={advisorInsight.theme.textMain} />
@@ -566,13 +603,14 @@ export default function App() {
                     
                     <div className="w-[1px] h-6 bg-slate-200 mx-1"></div>
                     
-                    {/* 🔥 TOMBOL EXPORT CSV LAPORAN BULANAN (OVERVIEW) */}
+                    {/* 🔥 TOMBOL UNDUH (OVERVIEW) */}
                     <button 
-                      onClick={handleExportCSV} 
-                      className="p-2 hover:bg-emerald-100 text-slate-400 hover:text-emerald-700 rounded-xl transition-all" 
-                      title="Export Laporan Bulanan (CSV)"
+                      onClick={() => { setExportMonth(viewDate.getMonth()); setExportYear(viewDate.getFullYear()); setIsExportModalOpen(true); }} 
+                      className="p-2 px-4 flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl transition-all shadow-sm" 
+                      title="Unduh Laporan"
                     >
-                        <Download size={18} strokeWidth={3}/>
+                        <Download size={16} strokeWidth={2.5}/>
+                        <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:block">Unduh Report</span>
                     </button>
                   </div>
                 </div>
@@ -594,9 +632,7 @@ export default function App() {
 
                 <div className="flex flex-col xl:flex-row gap-6">
                  
-                  {/* --- KOLOM KIRI (Lebar) --- */}
                   <div className="flex-1 min-w-0 space-y-6">
-                   
                     <Card className="rounded-[2.5rem] border-none shadow-xl p-6 lg:p-8 bg-white ring-1 ring-slate-100/30 overflow-hidden">
                       <Flex className="mb-2 items-start justify-between">
                           <div><Title className="font-bold text-slate-900 border-l-4 border-emerald-600 pl-3 text-[11px] tracking-widest leading-none uppercase">Tren harian</Title></div>
@@ -635,12 +671,9 @@ export default function App() {
                         </div>
                       </div>
                     </Card>
-
                   </div>
 
-                  {/* --- KOLOM KANAN: WIDGETS --- */}
                   <aside className="w-full xl:w-96 shrink-0 space-y-6">
-
                     <Card className="rounded-[2.5rem] border-none shadow-xl p-8 bg-white ring-1 ring-slate-100 relative overflow-hidden group hover:shadow-2xl transition-all">
                       <div className="absolute -top-10 -right-10 opacity-5 group-hover:scale-110 transition-transform duration-1000">
                         <HeartHandshake size={140} />
@@ -734,7 +767,7 @@ export default function App() {
               </div>
             )}
 
-            {/* TAB GOALS, LEDGER, & ZAKAT TETAP SAMA SEPERTI SEBELUMNYA */}
+            {/* TAB GOALS */}
             {activeTab === 'goals' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-900 p-8 lg:p-10 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden">
@@ -811,24 +844,26 @@ export default function App() {
               </div>
             )}
 
+            {/* TAB LEDGER */}
             {activeTab === 'ledger' && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
                   <Card className="rounded-[2.5rem] border-none shadow-xl ring-1 ring-slate-100 overflow-hidden bg-white p-0">
                     <div className="p-6 lg:p-8 border-b border-slate-50 flex flex-col md:flex-row justify-between items-center gap-6 bg-slate-50/50">
                       <Title className="font-black text-slate-900 text-2xl tracking-tighter">Riwayat Mutasi</Title>
                       
-                      {/* 🔥 TOMBOL EXPORT CSV DAN PENCARIAN DI TAB RIWAYAT */}
                       <div className="flex w-full md:w-auto gap-3 items-center">
                         <div className="relative w-full md:w-[320px]">
                             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
                             <input type="text" placeholder="Cari keterangan..." className="w-full pl-12 pr-6 py-3.5 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:ring-2 focus:ring-emerald-500 transition-all outline-none shadow-sm" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                         </div>
+                        {/* 🔥 TOMBOL UNDUH (LEDGER) */}
                         <button 
-                          onClick={handleExportCSV} 
-                          className="shrink-0 p-3.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-2xl transition-all shadow-sm border border-emerald-100" 
-                          title="Export CSV Laporan Bulanan"
+                          onClick={() => { setExportMonth(viewDate.getMonth()); setExportYear(viewDate.getFullYear()); setIsExportModalOpen(true); }} 
+                          className="shrink-0 p-3.5 px-5 flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-2xl transition-all shadow-sm border border-emerald-100" 
+                          title="Unduh Laporan"
                         >
                           <Download size={18} strokeWidth={2.5}/>
+                          <span className="text-xs font-bold uppercase tracking-widest hidden sm:block">Unduh Report</span>
                         </button>
                       </div>
                     </div>
@@ -865,6 +900,7 @@ export default function App() {
               </div>
             )}
 
+            {/* TAB ZAKAT */}
             {activeTab === 'zakat' && (
               <div className="animate-in slide-in-from-bottom-6 duration-700 max-w-4xl mx-auto space-y-8">
                 <Card className="rounded-[3rem] p-10 lg:p-16 bg-gradient-to-br from-emerald-600 to-emerald-900 text-white text-center shadow-[0_40px_80px_rgba(5,150,105,0.2)] relative overflow-hidden group border border-emerald-500/30">
