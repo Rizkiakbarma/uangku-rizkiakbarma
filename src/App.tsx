@@ -8,7 +8,7 @@ import {
   Coins, HeartHandshake, ArrowUpRight, ArrowDownRight, Zap,
   ChevronRight, ChevronLeft, Calendar, Menu, Settings, LogOut,
   Sparkles, BarChart3, TrendingUp, LineChart as LineChartIcon,
-  Bot, MessageSquare, Download, Palette, Share2, Camera // 🔥 Import Share2 & Camera
+  Bot, MessageSquare, Download, Palette, Share2, Camera
 } from 'lucide-react';
 
 import {
@@ -17,8 +17,8 @@ import {
 } from "@tremor/react";
 
 /**
- * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.5 - IG STORY GENERATOR)
- * Fix: Menambahkan fitur IG Story / Spotify Wrapped Generator untuk marketing viral.
+ * BudgetIN PRO - ENTERPRISE ULTIMATE (V29.6 - BUDGETIN BRANDING & CLEANUP)
+ * Fix: Rebranding dari UangKu menjadi BudgetIN dan membersihkan duplikasi kode.
  */
 
 // 🔥 1. SETUP KONEKSI DUA SUMBER DATA
@@ -241,7 +241,6 @@ export default function App() {
   const [monthlyBudget, setMonthlyBudget] = useState(5000000);
   const [isSettingBudget, setIsSettingBudget] = useState(false);
 
-  // 🔥 STATE IG STORY GENERATOR
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
 
@@ -469,12 +468,11 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     
     const link = document.createElement("a"); link.href = url;
-    link.download = `Laporan_Keuangan_UangKu_${new Date(exportYear, exportMonth).toLocaleDateString('id-ID', { month: 'long' })}_${exportYear}.csv`;
+    link.download = `Laporan_Keuangan_BudgetIN_${new Date(exportYear, exportMonth).toLocaleDateString('id-ID', { month: 'long' })}_${exportYear}.csv`;
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
     setIsExportModalOpen(false); 
   };
 
-  // 🔥 FUNGSI IG STORY GENERATOR (HTML2CANVAS DYNAMIC LOAD)
   const handleDownloadStory = () => {
     setIsCapturing(true);
     if (!window.html2canvas) {
@@ -490,11 +488,10 @@ export default function App() {
   const executeCapture = () => {
     const element = document.getElementById('story-card-content');
     if (element && window.html2canvas) {
-      // Tunggu font & animasi render sejenak
       setTimeout(() => {
         window.html2canvas(element, { scale: 3, backgroundColor: null, useCORS: true }).then(canvas => {
           const link = document.createElement('a');
-          link.download = `UangKu_Story_${new Date().getTime()}.png`;
+          link.download = `BudgetIN_Story_${new Date().getTime()}.png`;
           link.href = canvas.toDataURL('image/png');
           link.click();
           setIsCapturing(false);
@@ -528,13 +525,16 @@ export default function App() {
     return { title: "👀 GW PANTAU LU!", message: `Tumben dompet lu aman bulan ini. Tapi awas aja kalau besok lu foya-foya lagi, gw omelin lu!`, theme: styles.emerald };
   }, [totalKeluarBulanTerpilih, monthlyBudget, categoryData, filteredByMonth, activeGoal]);
 
+  // =========================================================================
+  // RENDER LANDING PAGE JUALAN
+  // =========================================================================
   if (showLanding) {
     return (
       <div className={`min-h-screen font-sans flex flex-col transition-colors duration-500 ${t.bg} ${t.textMain} ${t.selectionColor}`}>
         <nav className="px-6 py-5 flex justify-between items-center max-w-7xl mx-auto w-full relative z-10">
           <div className="flex items-center gap-3">
             <div className={`${t.primary} p-2.5 rounded-xl shadow-lg`}><Activity className="text-white w-5 h-5"/></div>
-            <span className="font-black tracking-tighter text-2xl uppercase">UangKu<span className={t.primaryText}>Pro</span></span>
+            <span className="font-black tracking-tighter text-2xl uppercase">BudgetIN<span className={t.primaryText}>Pro</span></span>
           </div>
           <div className="flex gap-3 items-center">
             <button onClick={toggleTheme} className={`p-2.5 ${t.cardBg} hover:${t.bgSoft} rounded-xl shadow-sm border ${t.border} ${t.textSub} transition-all`} title="Ganti Tema Mode"><Palette size={16} strokeWidth={2.5}/></button>
@@ -543,7 +543,7 @@ export default function App() {
         </nav>
         
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4 py-20 max-w-4xl mx-auto relative z-10">
-          <Badge className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}>✨ Tersedia Versi 29.5 (Story Share)</Badge>
+          <Badge className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}>✨ Tersedia Versi 29.6 (BudgetIN Branding)</Badge>
           
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.1]">
             Catat Keuangan <br className="hidden md:block"/>
@@ -551,7 +551,7 @@ export default function App() {
           </h1>
           
           <p className={`${t.textSub} text-base md:text-xl mb-12 max-w-2xl font-medium leading-relaxed`}>
-            Tinggalkan cara lama mencatat di Excel yang bikin malas. Kirim pengeluaranmu ke Bot Telegram UangKu, dan biarkan sistem menyusunnya ke dalam Dashboard Finansial kelas Enterprise secara otomatis.
+            Tinggalkan cara lama mencatat di Excel yang bikin malas. Kirim pengeluaranmu ke Bot Telegram BudgetIN, dan biarkan sistem menyusunnya ke dalam Dashboard Finansial kelas Enterprise secara otomatis.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
@@ -585,16 +585,20 @@ export default function App() {
         </section>
 
         <footer className={`${t.darkCardBg} py-10 text-center relative z-10 transition-colors duration-500`}>
-          <p className={`${t.accentDark} font-bold uppercase tracking-widest text-[10px]`}>Made with ❤️ by Rizkiakbarma. © 2026 UangKu Pro.</p>
+          <p className={`${t.accentDark} font-bold uppercase tracking-widest text-[10px]`}>Made with ❤️ by Rizkiakbarma. © 2026 BudgetIN Pro.</p>
         </footer>
       </div>
     );
   }
 
+  // =========================================================================
+  // RENDER DASHBOARD UTAMA
+  // =========================================================================
+
   if (loading) return (
     <div className={`min-h-screen ${t.bg} flex flex-col items-center justify-center text-center p-10`}>
       <Loader2 className={`animate-spin ${t.primaryText} w-12 h-12 mb-6`} />
-      <Text className={`font-bold tracking-widest ${t.textSub} uppercase text-[10px]`}>Mempersiapkan Dashboard...</Text>
+      <Text className={`font-bold tracking-widest ${t.textSub} uppercase text-[10px]`}>Sinkronisasi Database BUDGETIN...</Text>
     </div>
   );
 
@@ -621,7 +625,7 @@ export default function App() {
           <div className="flex items-center gap-4 mb-8 pl-2">
             <div className={`w-10 h-10 ${t.primary} rounded-xl flex items-center justify-center shadow-md shrink-0`}><Activity className="text-white" size={20} strokeWidth={3} /></div>
             <div>
-               <h1 className={`text-lg font-black tracking-tighter leading-none uppercase ${t.textMain}`}>UangKu</h1>
+               <h1 className={`text-lg font-black tracking-tighter leading-none uppercase ${t.textMain}`}>BudgetIN</h1>
                <Badge className={`mt-1 text-[8px] font-black uppercase px-2 py-0 border ${t.primaryLight} ${t.primaryText} ${t.border}`}>Versi Pro</Badge>
             </div>
           </div>
@@ -717,14 +721,13 @@ export default function App() {
                id="story-card-content" 
                className={`relative w-[320px] h-[568px] rounded-[2.5rem] overflow-hidden bg-gradient-to-br ${t.primaryGradient} text-white shadow-2xl p-8 flex flex-col justify-between`}
              >
-                {/* Decorative background overlay */}
                 <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
                 <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-black/20 rounded-full blur-2xl"></div>
                 
                 <div className="relative z-10 space-y-6">
                   <div className="flex items-center gap-2 mb-2">
                     <Activity className="w-5 h-5 text-white" />
-                    <span className="font-black tracking-tighter uppercase text-sm">UANGKU PRO</span>
+                    <span className="font-black tracking-tighter uppercase text-sm">BUDGETIN PRO</span>
                   </div>
                   
                   <div>
@@ -762,7 +765,6 @@ export default function App() {
                 </div>
              </div>
 
-             {/* TOMBOL DOWNLOAD */}
              <button 
                 onClick={handleDownloadStory} 
                 disabled={isCapturing}
