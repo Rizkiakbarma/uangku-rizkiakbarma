@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Transaction, Goal, RawTransaction } from '../types';
 import { processIncomingData } from '../lib/utils';
@@ -6,15 +6,40 @@ import { DUMMY_DATA } from '../lib/constants';
 
 const GAS_URL = process.env.REACT_APP_GAS_URL ?? '';
 
+// Variables to guarantee single-fetch across component entire lifecycle
+let globalHasFetchedData = false;
+let globalHasFetchedGoals = false;
+let cachedTransactions: Transaction[] = [];
+let cachedGoals: Goal[] = [];
+
 export function useFinanceData() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [transactions, setTransactionsState] = useState<Transaction[]>(cachedTransactions);
+  const [goals, setGoalsState] = useState<Goal[]>(cachedGoals);
+  const [loading, setLoading] = useState(!globalHasFetchedData);
   const [error, setError] = useState<string | null>(null);
   const [isSyncingGAS, setIsSyncingGAS] = useState(false);
 
-  const fetchData = useCallback(async (userId: string) => {
-    setLoading(true);
+  // Wrapper setter untuk memastikan memori global ikut update
+  const setTransactions = useCallback((val: any) => {
+    setTransactionsState(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      cachedTransactions = next;
+      return next;
+    });
+  }, []);
+
+  const setGoals = useCallback((val: any) => {
+    setGoalsState(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      cachedGoals = next;
+      return next;
+    });
+  }, []);
+  const fetchData = useCallback(async (userId: string, isRefresh = false) => {
+    if (globalHasFetchedData && !isRefresh) return;
+    globalHasFetchedData = true;
+    
+    setLoading(transactions.length === 0);
     setError(null);
     let supaLoadedData: Transaction[] = [];
 
@@ -50,7 +75,7 @@ export function useFinanceData() {
         const sheetData = processIncomingData(json.data)
           .map(item => ({ ...item, source: 'sheet' as const }));
           
-        setTransactions(prev => {
+        setTransactions((prev: Transaction[]) => {
           const combined = [...prev, ...sheetData];
           const unique = combined.filter((item, index, self) =>
             index === self.findIndex(tx =>
@@ -69,7 +94,10 @@ export function useFinanceData() {
     }
   }, []);
 
-  const fetchGoals = useCallback(async (userId: string) => {
+  const fetchGoals = useCallback(async (userId: string, isRefresh = false) => {
+    if (globalHasFetchedGoals && !isRefresh) return;
+    globalHasFetchedGoals = true;
+    
     try {
       const { data, error: dbError } = await supabase
         .from('goals')

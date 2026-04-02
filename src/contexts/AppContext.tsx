@@ -33,8 +33,8 @@ interface AppContextValue {
   loading: boolean;
   error: string | null;
   isSyncingGAS: boolean;
-  fetchData: (id: string) => Promise<void>;
-  fetchGoals: (id: string) => Promise<void>;
+  fetchData: (id: string, isRefresh?: boolean) => Promise<void>;
+  fetchGoals: (id: string, isRefresh?: boolean) => Promise<void>;
   // Navigation
   viewDate: Date;
   changeMonth: (offset: number) => void;
@@ -340,7 +340,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleDelete = useCallback(async () => {
     if (isDemo) {
-      setTransactions(prev => prev.filter(tx => tx.id !== deleteId));
+      setTransactions((prev: Transaction[]) => prev.filter((tx: Transaction) => tx.id !== deleteId));
       setDeleteId(null);
       return;
     }
@@ -365,8 +365,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
       setDeleteId(null);
-      fetchData(userId);
-      fetchGoals(userId);
+      fetchData(userId, true);
+      fetchGoals(userId, true);
     } catch (err) {
       console.error(err);
     } finally {
@@ -394,8 +394,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (txError) throw txError;
       }
       setDeleteGoalData(null);
-      fetchGoals(userId);
-      if (actionType === 'refund') fetchData(userId);
+      fetchGoals(userId, true);
+      if (actionType === 'refund') fetchData(userId, true);
     } catch (err) {
       alert('Gagal memproses penghapusan.');
     } finally {
