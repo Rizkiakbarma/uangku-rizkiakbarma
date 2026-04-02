@@ -16,58 +16,55 @@ export function useFinanceData() {
   const fetchData = useCallback(async (userId: string) => {
     setLoading(true);
     setError(null);
-    setIsSyncingGAS(true);
-    
+    let supaLoadedData: Transaction[] = [];
+
+    // 1. Fetch Cepat dari Supabase (Data Terkini)
     try {
-      // Jalankan fetch Supabase & GAS secara bersamaan (Parallel)
-      const [supaRes, gasRes] = await Promise.allSettled([
-        supabase.from('transactions').select('*').eq('user_id', String(userId)),
-        fetch(`${GAS_URL}?userid=${userId}`).then(res => res.json())
-      ]);
+      const { data, error: dbError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', String(userId));
 
-      let combinedData: Transaction[] = [];
+      if (dbError) throw dbError;
 
-      // 1. Ekstrak Hasil Supabase
-      if (supaRes.status === 'fulfilled' && supaRes.value.data) {
-        combinedData = processIncomingData(supaRes.value.data as RawTransaction[])
+      if (data) {
+        supaLoadedData = processIncomingData(data as RawTransaction[])
           .map(item => ({ ...item, source: 'supabase' as const }));
-      } else if (supaRes.status === 'rejected') {
-        console.warn('[BudgetIN] Supabase fetch gagal:', supaRes.reason);
-      }
-
-      // 2. Ekstrak Hasil Google Sheets
-      if (gasRes.status === 'fulfilled') {
-        const json = gasRes.value as { status: string; data: RawTransaction[] };
-        if (json.status === 'success') {
-          const sheetData = processIncomingData(json.data)
-            .map(item => ({ ...item, source: 'sheet' as const }));
-            
-          combinedData = [...combinedData, ...sheetData];
-        }
-      } else {
-        console.warn('[BudgetIN] Sheets sync gagal:', gasRes.reason);
-      }
-
-      // 3. Filter Duplikat & Sort
-      const unique = combinedData.filter((item, index, self) =>
-        index === self.findIndex(tx =>
-          tx.dateKey === item.dateKey &&
-          tx.amount === item.amount &&
-          tx.desc?.toLowerCase() === item.desc?.toLowerCase()
-        )
-      );
-      
-      unique.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime() || b.id - a.id);
-      
-      setTransactions(unique);
-      if (unique.length === 0 && supaRes.status === 'rejected') {
-        setError('Gagal memuat data. Periksa koneksi internet kamu.');
+        supaLoadedData.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime() || b.id - a.id);
+        setTransactions(supaLoadedData);
       }
     } catch (e) {
-      console.error(e);
-      setError('Terjadi kesalahan yang tidak terduga.');
+      console.warn('[BudgetIN] Supabase fetch gagal', e);
+      // Jangan set error fatal dulu, mungkin bisa diselamatkan lewat GAS
     } finally {
-      setLoading(false);
+      // Bebaskan loading secepat kilat!
+      setLoading(false); 
+    }
+
+    // 2. Sync Silent Latar Belakang dari Google Sheets (Data Lawas)
+    setIsSyncingGAS(true);
+    try {
+      const res = await fetch(`${GAS_URL}?userid=${userId}`);
+      const json = await res.json() as { status: string; data: RawTransaction[] };
+      if (json.status === 'success') {
+        const sheetData = processIncomingData(json.data)
+          .map(item => ({ ...item, source: 'sheet' as const }));
+          
+        setTransactions(prev => {
+          const combined = [...prev, ...sheetData];
+          const unique = combined.filter((item, index, self) =>
+            index === self.findIndex(tx =>
+              tx.dateKey === item.dateKey &&
+              tx.amount === item.amount &&
+              tx.desc?.toLowerCase() === item.desc?.toLowerCase()
+            )
+          );
+          return unique.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime() || b.id - a.id);
+        });
+      }
+    } catch (e) {
+      console.warn('[BudgetIN] Sheets sync gagal', e);
+    } finally {
       setIsSyncingGAS(false);
     }
   }, []);
