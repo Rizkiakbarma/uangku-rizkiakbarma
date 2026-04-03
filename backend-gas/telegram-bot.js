@@ -22,21 +22,25 @@ const SUPABASE_URL = "https://tdjzksdxnvxoaethaxeo.supabase.co";
 const SUPABASE_KEY = "sb_publishable_CIPEHIf12ctSTq_liVgWiA_E3n734fh";
 
 const CATEGORY_MAP = {
-    'MASUK': ['gajian', 'cair', 'transferan', 'bonus', 'profit', 'untung', 'sangu', 'pemasukan', 'income', 'pendapatan', 'terima', 'dapat', 'gaji', 'masuk'],
-    'Food and Beverages': ['makan', 'kopi', 'starbucks', 'indomaret', 'alfamart', 'gofood', 'grabfood', 'bakso', 'nasi', 'restoran', 'warung', 'jajan', 'snack', 'cemilan', 'mixue', 'haus', 'esteh', 'mie ayam', 'minum', 'minuman'],
-    'TRANSPORTASI': ['gojek', 'grab', 'bensin', 'pertalite', 'pertamax', 'parkir', 'tol', 'ojek', 'transport', 'maxim', 'shell', 'mrt', 'krl', 'busway'],
-    'SEDEKAH/ZAKAT': ['sedekah', 'zakat', 'infaq', 'masjid', 'donasi', 'berbagi', 'shodaqoh', 'wakaf', 'kurban', 'fidyah', 'waqaf'],
-    'HIBURAN': ['nonton', 'bioskop', 'netflix', 'spotify', 'game', 'topup', 'steam', 'healing', 'liburan', 'tiket', 'cinema', 'xxi'],
-    'KESEHATAN': ['obat', 'apotek', 'dokter', 'rs', 'sakit', 'vitamin', 'klinik', 'skincare', 'gym', 'olahraga'],
-    'INTERNET': ['pulsa', 'kuota', 'wifi', 'indihome', 'biznet', 'xl', 'telkomsel', 'tri', 'indosat', 'langganan'],
-    'TEMPAT TINGGAL': ['kost', 'kostan', 'apart', 'kontrakan', 'sewa', 'listrik', 'token', 'air', 'pdam'],
+    'PENDAPATAN': ['gajian', 'cair', 'transferan', 'bonus', 'profit', 'untung', 'sangu', 'pemasukan', 'income', 'pendapatan', 'terima', 'dapat', 'gaji', 'masuk', 'beasiswa', 'hibah', 'cashback', 'angpau', 'refund'],
+    'KONSUMSI': ['makan', 'kopi', 'starbucks', 'indomaret', 'alfamart', 'gofood', 'grabfood', 'bakso', 'nasi', 'restoran', 'warung', 'jajan', 'snack', 'cemilan', 'mixue', 'haus', 'esteh', 'mie ayam', 'minum', 'minuman', 'kantin', 'burjo', 'sarapan', 'lunch', 'dinner', 'martabak', 'gorengan', 'cimol', 'cilok', 'seblak'],
+    'TRANSPORTASI': ['gojek', 'grab', 'bensin', 'pertalite', 'pertamax', 'parkir', 'tol', 'ojek', 'transport', 'maxim', 'shell', 'mrt', 'krl', 'busway', 'tiket', 'travel', 'kereta', 'pesawat', 'tambal ban', 'servis', 'oli'],
+    'PERSONAL CARE': ['skincare', 'laundry', 'cuci', 'sabun', 'sampo', 'shampoo', 'potong rambut', 'barbershop', 'salon', 'parfum', 'softlens', 'deodoran', 'odol', 'sikat gigi', 'facial', 'cuci muka', 'lotion', 'sunscreen'],
+    'KEBUTUHAN RUMAH': ['sembako', 'beras', 'galon', 'gas', 'pdam', 'listrik', 'token', 'air', 'deterjen', 'cleaning', 'perabot', 'piring', 'kasur', 'sapu', 'pel', 'minyak goreng', 'telur', 'mi instan'],
+    'SOSIAL': ['traktir', 'kondangan', 'iuran', 'sumbangan', 'kado', 'hadiah teman', 'amplop', 'donasi', 'arisan', 'patungan'],
     'KELUARGA': ['ibu', 'mama', 'bunda', 'orang tua', 'ortu', 'ayah', 'papa', 'adek', 'dede', 'adik', 'kakak', 'abang', 'teteh', 'sepupu', 'mbak', 'keponakan', 'ponakan', 'om', 'tante'],
-    'BELANJA': ['shopee', 'tokopedia', 'mall', 'baju', 'kaos', 'belanja', 'tiktok shop', 'lazada'],
-    'PENDIDIKAN': ['ukt', 'semester', 'buku', 'fotocopy', 'print', 'seminar', 'skripsi'],
-    'TOOLS & TECH': ['domain', 'hosting', 'vercel', 'api', 'chatgpt', 'ai', 'subscription', 'gemini', 'google', 'bootcamp'],
-    'INVESTASI': ['bibit', 'reksadana', 'emas', 'saham', 'crypto', 'nabung'],
-    'DATING': ['pacar', 'doi', 'ayang', 'ngedate', 'kencan', 'dating', 'date', 'bucin', 'anniv', 'pacaran', 'bioskop'],
-    'LAINNYA': ['biaya', 'admin', 'pajak', 'denda', 'gadai', 'hutang']
+    'SEDEKAH/ZAKAT': ['sedekah', 'zakat', 'infaq', 'masjid', 'donasi', 'berbagi', 'shodaqoh', 'wakaf', 'kurban', 'fidyah', 'waqaf', 'beramal'],
+    'HIBURAN': ['nonton', 'bioskop', 'netflix', 'spotify', 'game', 'topup', 'steam', 'healing', 'liburan', 'tiket', 'cinema', 'xxi', 'cgv', 'wisata', 'staycation', 'hotel', 'villa'],
+    'KESEHATAN': ['obat', 'apotek', 'dokter', 'rs', 'sakit', 'vitamin', 'klinik', 'gym', 'olahraga', 'sehat', 'puskesmas', 'periksa', 'lab', 'panadol', 'paracetamol'],
+    'INTERNET': ['pulsa', 'kuota', 'wifi', 'indihome', 'biznet', 'xl', 'telkomsel', 'tri', 'indosat', 'langganan', 'servis hp', 'casing', 'charger', 'kabel data'],
+    'TEMPAT TINGGAL': ['kost', 'kostan', 'apart', 'kontrakan', 'sewa', 'kosan', 'kontrak', 'cicilan rumah', 'maintenance'],
+    'BELANJA': ['shopee', 'tokopedia', 'mall', 'baju', 'kaos', 'belanja', 'tiktok shop', 'lazada', 'sepatu', 'celana', 'jaket', 'hoodie', 'tas', 'dompet', 'aksesoris'],
+    'PENDIDIKAN': ['ukt', 'semester', 'buku', 'fotocopy', 'print', 'seminar', 'skripsi', 'pendaftaran', 'kursus', 'pelatihan', 'jilid', 'atk', 'pena', 'pensil'],
+    'TOOLS & TECH': ['domain', 'hosting', 'vercel', 'api', 'chatgpt', 'ai', 'subscription', 'gemini', 'google', 'bootcamp', 'coding', 'github'],
+    'INVESTASI': ['bibit', 'reksadana', 'emas', 'saham', 'crypto', 'nabung', 'aset', 'properti'],
+    'ROMANSA': ['pacar', 'doi', 'ayang', 'ngedate', 'kencan', 'dating', 'date', 'bucin', 'anniv', 'pacaran', 'hadiah doi', 'bunga'],
+    'HEWAN': ['anabul', 'kucing', 'petshop', 'whiskas', 'pakan', 'pasir kucing', 'dokter hewan', 'grooming', 'anjing', 'wet food'],
+    'LAINNYA': ['biaya', 'admin', 'pajak', 'denda', 'gadai', 'hutang', 'utang', 'pinjaman', 'bunga bank']
 };
 
 // =========================================================================
@@ -352,7 +356,7 @@ function doPost(e) {
 
 function getContextualNote(category) {
     const notes = {
-        'Food and Beverages': [
+        'KONSUMSI': [
             "Nyam! Makanan enak itu energi, tapi jangan lupa berhenti sebelum kenyang ya. 🍲",
             "Sip, tercatat! Inget ya, minuman enak itu investasi mood, asal dompet nggak bad mood. ☕",
             "Data masuk. Makan dan minum yang bergizi ya best, biar aktivitas makin gacor! 🍎"
@@ -365,7 +369,7 @@ function getContextualNote(category) {
             "Alhamdulillah! Semoga berkah dan menjadi pembuka pintu rezeki yang lebih luas. ✨",
             "Harta tidak akan berkurang karena sedekah. Terima kasih sudah berbagi hari ini! 🕌"
         ],
-        'DATING': [
+        'ROMANSA': [
             "Ciee, biaya 'bucin' ya? Gapapa, asal tetap terkontrol biar masa depan bareng doi aman! 😜",
             "Data ngedate tersimpan. Semoga makin harmonis ya! Jangan lupa nabung buat masa depan. 💍"
         ],
@@ -373,7 +377,7 @@ function getContextualNote(category) {
             "Investasi masa depan AI Enthusiast nih. Semoga tools ini bikin produktivitasmu makin gacor! 🤖",
             "Siap, biaya R&D & Tech sudah masuk database. Lanjutkan inovasinya!"
         ],
-        'MASUK': [
+        'PENDAPATAN': [
             "Alhamdulillah, dana segar! Jangan lupa diparkir ke tabungan dulu sebelum diterbangkan buat jajan. 🚀",
             "Rezeki hari ini tercatat. Mau dialokasikan ke mana nih? 📈"
         ],
@@ -392,6 +396,38 @@ function getContextualNote(category) {
         'BELANJA': [
             "Belanja boleh, israf jangan ya. Pastikan barangnya bermanfaat! 🛍️",
             "Oke, pengeluaran masuk. Ingat: Keinginan tak terbatas, saldo terbatas."
+        ],
+        'PERSONAL CARE': [
+            "Self-care itu penting! Rawat diri tapi tetap bijak ya. ✨",
+            "Investasi penampilan tercatat. Selalu tampil percaya diri! 💆"
+        ],
+        'KEBUTUHAN RUMAH': [
+            "Kebutuhan pokok rumah tercatat. Rumah nyaman = hati tenang! 🏠",
+            "Stok rumah aman. Hidup teratur dimulai dari dapur yang rapi! 🧹"
+        ],
+        'SOSIAL': [
+            "Menjaga silaturahmi itu investasi sosial terbaik. Tercatat! 🤝",
+            "Berbagi kebahagiaan dengan orang sekitar. Semoga berkah selalu! 🎁"
+        ],
+        'KELUARGA': [
+            "Untuk keluarga, tidak pernah rugi. Semoga selalu harmonis! 👨‍👩‍👧‍👦",
+            "Keluarga adalah segalanya. Pengeluaran ini pasti bernilai! ❤️"
+        ],
+        'KESEHATAN': [
+            "Sehat itu mahal, tapi sakit lebih mahal. Jaga kesehatan selalu! 💪",
+            "Investasi kesehatan tercatat. Badan sehat, rezeki lancar! 🏥"
+        ],
+        'INTERNET': [
+            "Koneksi lancar, produktivitas melesat! Data tercatat. 📶",
+            "Kebutuhan digital di era modern. Semoga dipakai untuk hal positif! 📱"
+        ],
+        'TEMPAT TINGGAL': [
+            "Tempat tinggal nyaman = pikiran tenang untuk berkarya. 🏡",
+            "Biaya hunian tercatat. Semoga selalu betah dan produktif!"
+        ],
+        'HEWAN': [
+            "Sayang anabul! Merawat hewan itu ibadah juga lho. 🐱",
+            "Si bulu tercinta pasti senang! Pengeluaran kasih sayang tercatat. 🐾"
         ],
         'LAINNYA': [
             "Data tersimpan. Yuk, catat terus biar keuangan makin sehat dan transparan!",
@@ -486,7 +522,7 @@ function processTransaction(chatId, text) {
 }
 
 function saveTransaction(chatId, description, amount, category, messageIdToEdit = null) {
-    const type = (category === 'MASUK') ? 'MASUK' : 'KELUAR';
+    const type = (category === 'PENDAPATAN') ? 'MASUK' : 'KELUAR';
     try {
         const timestamp = new Date();
         // 1. Tembak ke Supabase duluan untuk mendapatkan ID Valid

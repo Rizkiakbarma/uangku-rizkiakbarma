@@ -88,9 +88,9 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
 };
 
 export const DUMMY_DATA: RawTransaction[] = [
-  { id: 991, date: new Date().toISOString(), amount: 15500000, type: 'MASUK', category: 'MASUK', description: 'Gaji Bulanan (Demo)' },
-  { id: 992, date: new Date().toISOString(), amount: 250000, type: 'KELUAR', category: 'Food and Beverages', description: 'Makan Siang' },
-  { id: 993, date: new Date().toISOString(), amount: 350000, type: 'KELUAR', category: 'Tagihan', description: 'Internet Wifi' },
+  { id: 991, date: new Date().toISOString(), amount: 15500000, type: 'MASUK', category: 'PENDAPATAN', description: 'Gaji Bulanan (Demo)' },
+  { id: 992, date: new Date().toISOString(), amount: 250000, type: 'KELUAR', category: 'KONSUMSI', description: 'Makan Siang' },
+  { id: 993, date: new Date().toISOString(), amount: 350000, type: 'KELUAR', category: 'INTERNET', description: 'Internet Wifi' },
   { id: 994, date: new Date().toISOString(), amount: 100000, type: 'KELUAR', category: 'SEDEKAH/ZAKAT', description: 'Infaq Jumat' },
 ];
 

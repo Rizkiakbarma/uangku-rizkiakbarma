@@ -418,7 +418,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           description: `Refund Tabungan: ${deleteGoalData.goal_name}`,
           amount: deleteGoalData.current_amount,
           type: 'MASUK',
-          category: 'MASUK',
+          category: 'PENDAPATAN',
           status: 'Selesai',
         }]);
         if (txError) throw txError;
