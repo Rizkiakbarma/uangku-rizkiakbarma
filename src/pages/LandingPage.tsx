@@ -40,7 +40,7 @@ export default function LandingPage() {
         <Badge
           className={`mb-8 px-4 py-1.5 font-bold tracking-[0.2em] uppercase text-[10px] animate-pulse border ${t.primaryLight} ${t.primaryText} ${t.border}`}
         >
-          ✨ Tersedia Versi 30.1 (MONEY TRACKER ENGINE)
+          ✨ Versi 1.0 (Release Candidate)
         </Badge>
 
         <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter mb-8 leading-[1.1]">
