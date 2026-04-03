@@ -80,12 +80,12 @@ export default function LandingPage() {
         {/* Manual Key Login */}
         <div className={`mt-8 w-full max-w-md rounded-[1.5rem] border p-5 ${t.bgSoft} ${t.border}`}>
           <p className={`text-[10px] font-bold uppercase tracking-[0.25em] mb-3 text-center ${t.textSub}`}>
-            Sudah punya kunci akses? Masukkan di sini
+            Sudah punya akun? Masukkan kode aksesmu
           </p>
           <form onSubmit={handleManualLogin} className="flex gap-2">
             <input
               type="text"
-              placeholder="Tempel kode rahasiamu..."
+              placeholder="Tempel kode dari bot Telegram..."
               value={manualKey}
               onChange={e => setManualKey(e.target.value)}
               className={`flex-1 px-4 py-3 rounded-xl border text-xs font-bold outline-none transition-all bg-transparent placeholder:opacity-40 ${t.textMain} ${t.border} ${t.borderFocus}`}
@@ -98,6 +98,9 @@ export default function LandingPage() {
               Masuk
             </button>
           </form>
+          <p className={`text-[9px] mt-3 text-center font-medium italic ${t.textSub}`}>
+            Belum tahu kode kamu? Ketik <span className="font-black not-italic">/kodeakses</span> di Bot Telegram BudgetIN.
+          </p>
         </div>
       </main>
 

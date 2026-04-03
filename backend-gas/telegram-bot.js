@@ -218,6 +218,20 @@ function doPost(e) {
             return;
         }
 
+        if (text.toLowerCase() === "/kodeakses") {
+            const secretKey = getSecretKey(chatId);
+            sendTelegramMessage(chatId,
+                `🔑 *Kode Akses Dashboard BudgetIN Kamu:*\n\n` +
+                `\`${secretKey}\`\n\n` +
+                `Langkah login:\n` +
+                `1️⃣ Copy kode di atas\n` +
+                `2️⃣ Buka: ${DASHBOARD_URL}\n` +
+                `3️⃣ Tempel di kolom *"Masukkan Kode Akses"* → tekan Masuk\n\n` +
+                `⚠️ _Jaga kerahasiaan kode ini, jangan bagikan ke siapapun._`
+            );
+            return;
+        }
+
         if (text.startsWith("/help") || text.startsWith("/start")) {
             sendHelpMessage(chatId);
             return;
