@@ -4,7 +4,7 @@ import { Card, Title, Text, Badge, ProgressBar, Grid, Flex } from '@tremor/react
 import { useApp } from '../contexts/AppContext';
 
 export default function Goals() {
-  const { t, goals, transactions, setDeleteGoalData, formatRp } = useApp();
+  const { t, goals, transactions, setDeleteGoalData, formatRp, isFetching } = useApp();
 
   const savingsHistory = transactions.filter(tx =>
     tx.desc?.toLowerCase().includes('nabung goals:') ||
@@ -26,7 +26,30 @@ export default function Goals() {
 
       {/* Grid Goals */}
       <Grid numItemsMd={2} className="gap-6">
-        {goals.map(g => (
+        {isFetching ? (
+          Array.from({ length: 2 }).map((_, i) => (
+            <Card key={`skele-${i}`} className={`rounded-[2.5rem] border-none shadow-sm p-8 ${t.cardBg} ${t.border}`}>
+              <div className="flex mb-5 items-start justify-between pr-10">
+                <div>
+                  <div className={`h-8 w-48 mb-2 rounded animate-pulse ${t.bgSoft}`} />
+                  <div className={`h-4 w-32 rounded animate-pulse ${t.bgSoft}`} />
+                </div>
+                <div className={`w-12 h-6 rounded-lg animate-pulse ${t.bgSoft}`} />
+              </div>
+              <div className={`h-3.5 w-full rounded-full mb-6 animate-pulse ${t.bgSoft}`} />
+              <div className={`flex justify-between items-center p-5 rounded-2xl border ${t.bgSoft} ${t.border}`}>
+                <div>
+                  <div className={`h-3 w-20 mb-2 rounded animate-pulse bg-white/20`} />
+                  <div className={`h-6 w-32 rounded animate-pulse bg-white/20`} />
+                </div>
+                <div className="flex flex-col items-end">
+                  <div className={`h-3 w-16 mb-2 rounded animate-pulse bg-white/20`} />
+                  <div className={`h-6 w-24 rounded animate-pulse bg-white/20`} />
+                </div>
+              </div>
+            </Card>
+          ))
+        ) : goals.map(g => (
           <Card key={g.id} className={`rounded-[2.5rem] border-none shadow-sm p-8 relative overflow-hidden group hover:shadow-xl transition-all hover:-translate-y-1 ring-1 ${t.cardBg} ${t.border}`}>
             <button
               onClick={e => { e.stopPropagation(); setDeleteGoalData(g); }}
@@ -63,7 +86,7 @@ export default function Goals() {
             </div>
           </Card>
         ))}
-        {goals.length === 0 && (
+        {!isFetching && goals.length === 0 && (
           <div className={`col-span-2 p-16 text-center rounded-[2.5rem] border-2 border-dashed ${t.bgSoft} ${t.border}`}>
             <Target size={48} className={`mx-auto mb-4 ${t.textSub}`} />
             <h3 className={`font-bold mb-2 ${t.textSub}`}>Belum ada target impian.</h3>
@@ -89,7 +112,18 @@ export default function Goals() {
               </tr>
             </thead>
             <tbody className={`divide-y ${t.divide}`}>
-              {savingsHistory.length > 0 ? savingsHistory.map(tx => (
+              {isFetching ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-6 py-4"><div className={`h-4 w-12 rounded animate-pulse ${t.bgSoft}`} /></td>
+                    <td className="px-6 py-4">
+                      <div className={`h-4 w-40 mb-2 rounded animate-pulse ${t.bgSoft}`} />
+                      <div className={`h-3 w-16 rounded animate-pulse ${t.bgSoft}`} />
+                    </td>
+                    <td className="px-6 py-4"><div className={`h-5 w-24 rounded animate-pulse float-right ${t.bgSoft}`} /></td>
+                  </tr>
+                ))
+              ) : savingsHistory.length > 0 ? savingsHistory.map(tx => (
                 <tr key={tx.id} className={`transition-all group hover:${t.bgSoft}`}>
                   <td className={`px-6 py-4 text-[11px] font-bold uppercase whitespace-nowrap ${t.textSub}`}>{tx.dateStr}</td>
                   <td className="px-6 py-4">

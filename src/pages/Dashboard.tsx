@@ -14,7 +14,7 @@ export default function Dashboard() {
     t, viewDate, changeMonth, setIsExportModalOpen, setExportMonth, setExportYear,
     totalMasukBulanTerpilih, totalKeluarBulanTerpilih, momIncomePercentage, momExpensePercentage,
     advisorInsight, barakahScore, chartData, categoryData, userBadges, activeGoals,
-    monthlyBudget, isSettingBudget, setIsSettingBudget, handleSaveBudget,
+    monthlyBudget, isSettingBudget, setIsSettingBudget, handleSaveBudget, isFetching,
     isBarChart, setIsBarChart, setIsStoryModalOpen, formatRp, axisFormatter,
     setActiveTab,
   } = useApp() as ReturnType<typeof useApp> & { setActiveTab?: (tab: string) => void };
@@ -45,9 +45,13 @@ export default function Dashboard() {
           <Text className={`font-bold uppercase tracking-[0.3em] text-[9px] mb-2 flex items-center gap-2 ${t.textSub}`}>
             <div className={`w-2 h-2 ${t.primary} rounded-full animate-ping`} /> Total saldo aktif
           </Text>
-          <h2 className={`text-4xl lg:text-5xl font-black tracking-tighter drop-shadow-md ${t.textMain}`}>
-            {formatRp(useApp().stats.balance)}
-          </h2>
+          {isFetching ? (
+            <div className={`h-10 lg:h-12 w-48 lg:w-64 mt-2 rounded-xl animate-pulse ${t.bgSoft} border border-white/5`}></div>
+          ) : (
+            <h2 className={`text-4xl lg:text-5xl font-black tracking-tighter drop-shadow-md ${t.textMain}`}>
+              {formatRp(useApp().stats.balance)}
+            </h2>
+          )}
         </div>
         <div className={`flex items-center p-1.5 rounded-2xl border transition-colors ${t.bgSoft} ${t.border}`}>
           <button onClick={() => changeMonth(-1)} className={`p-2 hover:${t.cardBg} hover:shadow-sm rounded-xl transition-all ${t.textSub}`}>
@@ -82,7 +86,11 @@ export default function Dashboard() {
             <Flex alignItems="center">
               <div>
                 <Text className={`text-[10px] font-bold uppercase tracking-widest leading-none mb-3 ${t.textSub}`}>{label}</Text>
-                <Metric className={`font-black text-3xl tracking-tighter ${up ? t.primaryText : 'text-rose-600'}`}>{formatRp(value)}</Metric>
+                {isFetching ? (
+                  <div className={`h-8 w-32 my-1 rounded-md animate-pulse ${t.bgSoft}`}></div>
+                ) : (
+                  <Metric className={`font-black text-3xl tracking-tighter ${up ? t.primaryText : 'text-rose-600'}`}>{formatRp(value)}</Metric>
+                )}
                 <div className="mt-3 flex items-center gap-2">
                   <Badge color={up ? (pct >= 0 ? 'emerald' : 'rose') : (pct > 0 ? 'rose' : 'emerald')} className="rounded-lg text-[9px] font-bold uppercase px-2 py-0.5 shadow-sm">
                     {pct >= 0 ? '⬆ NAIK' : '⬇ TURUN'} {Math.abs(Math.round(pct))}%

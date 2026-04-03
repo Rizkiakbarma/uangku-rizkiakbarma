@@ -16,6 +16,7 @@ export function useFinanceData() {
   const [transactions, setTransactionsState] = useState<Transaction[]>(cachedTransactions);
   const [goals, setGoalsState] = useState<Goal[]>(cachedGoals);
   const [loading, setLoading] = useState(!globalHasFetchedData);
+  const [isFetching, setIsFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSyncingGAS, setIsSyncingGAS] = useState(false);
 
@@ -40,64 +41,64 @@ export function useFinanceData() {
     globalHasFetchedData = true;
     
     setLoading(transactions.length === 0);
+    setIsFetching(true);
     setError(null);
-    let supaLoadedData: Transaction[] = [];
+    setIsSyncingGAS(true); // for badge compat
 
-    // 1. Fetch Cepat dari Supabase (Data Terkini)
     try {
-      const { data, error: dbError } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', String(userId));
+      const [supaRes, gasRes] = await Promise.allSettled([
+        supabase.from('transactions').select('*').eq('user_id', String(userId)),
+        fetch(`${GAS_URL}?userid=${userId}`).then(res => res.json())
+      ]);
 
-      if (dbError) throw dbError;
+      let combinedData: Transaction[] = [];
 
-      if (data) {
-        supaLoadedData = processIncomingData(data as RawTransaction[])
+      if (supaRes.status === 'fulfilled' && supaRes.value.data) {
+        combinedData = processIncomingData(supaRes.value.data as RawTransaction[])
           .map(item => ({ ...item, source: 'supabase' as const }));
-        supaLoadedData.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime() || b.id - a.id);
-        setTransactions(supaLoadedData);
+      } else if (supaRes.status === 'rejected') {
+        console.warn('[BudgetIN] Supabase fetch gagal:', supaRes.reason);
       }
-    } catch (e) {
-      console.warn('[BudgetIN] Supabase fetch gagal', e);
-      // Jangan set error fatal dulu, mungkin bisa diselamatkan lewat GAS
-    } finally {
-      // Bebaskan loading secepat kilat!
-      setLoading(false); 
-    }
 
-    // 2. Sync Silent Latar Belakang dari Google Sheets (Data Lawas)
-    setIsSyncingGAS(true);
-    try {
-      const res = await fetch(`${GAS_URL}?userid=${userId}`);
-      const json = await res.json() as { status: string; data: RawTransaction[] };
-      if (json.status === 'success') {
-        const sheetData = processIncomingData(json.data)
-          .map(item => ({ ...item, source: 'sheet' as const }));
-          
-        setTransactions((prev: Transaction[]) => {
-          const combined = [...prev, ...sheetData];
-          const unique = combined.filter((item, index, self) =>
-            index === self.findIndex(tx =>
-              tx.dateKey === item.dateKey &&
-              tx.amount === item.amount &&
-              tx.desc?.toLowerCase() === item.desc?.toLowerCase()
-            )
-          );
-          return unique.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime() || b.id - a.id);
-        });
+      if (gasRes.status === 'fulfilled') {
+        const json = gasRes.value as { status: string; data: RawTransaction[] };
+        if (json.status === 'success') {
+          const sheetData = processIncomingData(json.data)
+            .map(item => ({ ...item, source: 'sheet' as const }));
+          combinedData = [...combinedData, ...sheetData];
+        }
+      } else {
+        console.warn('[BudgetIN] Sheets sync gagal:', gasRes.reason);
+      }
+
+      const unique = combinedData.filter((item, index, self) =>
+        index === self.findIndex(tx =>
+          tx.dateKey === item.dateKey && tx.amount === item.amount && tx.desc?.toLowerCase() === item.desc?.toLowerCase()
+        )
+      );
+      
+      unique.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime() || b.id - a.id);
+      setTransactions(unique);
+      
+      if (unique.length === 0 && supaRes.status === 'rejected') {
+        setError('Gagal memuat data. Periksa koneksi internet kamu.');
       }
     } catch (e) {
-      console.warn('[BudgetIN] Sheets sync gagal', e);
+      console.error(e);
+      setError('Terjadi kesalahan yang tidak terduga.');
     } finally {
+      setLoading(false);
+      setIsFetching(false);
       setIsSyncingGAS(false);
     }
-  }, []);
+  }, [transactions.length, setTransactions]);
+
 
   const fetchGoals = useCallback(async (userId: string, isRefresh = false) => {
     if (globalHasFetchedGoals && !isRefresh) return;
     globalHasFetchedGoals = true;
     
+    setIsFetching(true);
     try {
       const { data, error: dbError } = await supabase
         .from('goals')
@@ -109,6 +110,8 @@ export function useFinanceData() {
       if (data) setGoals(data as Goal[]);
     } catch (err) {
       console.error('[BudgetIN] Gagal mengambil goals', err);
+    } finally {
+      setIsFetching(false);
     }
   }, []);
 
@@ -123,6 +126,7 @@ export function useFinanceData() {
     setTransactions,
     goals,
     setGoals,
+    isFetching,
     loading,
     error,
     isSyncingGAS,

@@ -7,7 +7,7 @@ export default function Ledger() {
   const {
     t, transactions, searchQuery, setSearchQuery,
     setDeleteId, setIsExportModalOpen, setExportMonth, setExportYear, viewDate,
-    formatRp,
+    formatRp, isFetching
   } = useApp();
 
   const filtered = transactions.filter(tx =>
@@ -55,7 +55,19 @@ export default function Ledger() {
               </tr>
             </thead>
             <tbody className={`divide-y ${t.divide}`}>
-              {filtered.length > 0 ? filtered.map(tx => (
+              {isFetching ? (
+                Array.from({ length: 7 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-6 py-4"><div className={`h-4 w-12 rounded animate-pulse ${t.bgSoft}`} /></td>
+                    <td className="px-6 py-4">
+                      <div className={`h-4 w-40 mb-2 rounded animate-pulse ${t.bgSoft}`} />
+                      <div className={`h-3 w-16 rounded animate-pulse ${t.bgSoft}`} />
+                    </td>
+                    <td className="px-6 py-4"><div className={`h-5 w-24 rounded animate-pulse float-right ${t.bgSoft}`} /></td>
+                    <td className="px-6 py-4 text-center"><div className={`h-8 w-8 mx-auto rounded-xl animate-pulse ${t.bgSoft}`} /></td>
+                  </tr>
+                ))
+              ) : filtered.length > 0 ? filtered.map(tx => (
                 <tr key={tx.id} className={`transition-all group border-l-4 border-transparent hover:${t.bgSoft}`}>
                   <td className={`px-6 py-4 text-[11px] font-bold uppercase whitespace-nowrap ${t.textSub}`}>{tx.dateStr}</td>
                   <td className="px-6 py-4">
