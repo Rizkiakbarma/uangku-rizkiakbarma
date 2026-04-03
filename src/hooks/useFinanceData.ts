@@ -36,6 +36,18 @@ export function useFinanceData() {
       return next;
     });
   }, []);
+
+  // Helper: deduplicate & sort transaksi
+  const dedupeAndSort = (data: Transaction[]): Transaction[] => {
+    const unique = data.filter((item, index, self) =>
+      index === self.findIndex(tx =>
+        tx.dateKey === item.dateKey && tx.amount === item.amount && tx.desc?.toLowerCase() === item.desc?.toLowerCase()
+      )
+    );
+    unique.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime() || b.id - a.id);
+    return unique;
+  };
+
   const fetchData = useCallback(async (userId: string, isRefresh = false) => {
     if (globalHasFetchedData && !isRefresh) return;
     globalHasFetchedData = true;
@@ -43,53 +55,58 @@ export function useFinanceData() {
     setLoading(transactions.length === 0);
     setIsFetching(true);
     setError(null);
-    setIsSyncingGAS(true); // for badge compat
 
     try {
-      const [supaRes, gasRes] = await Promise.allSettled([
-        supabase.from('transactions').select('*').eq('user_id', String(userId)),
-        fetch(`${GAS_URL}?userid=${userId}`).then(res => res.json())
-      ]);
+      // ═══ TAHAP 1: Supabase dulu — langsung render ke UI ═══
+      const { data: supaData, error: supaErr } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', String(userId));
 
-      let combinedData: Transaction[] = [];
-
-      if (supaRes.status === 'fulfilled' && supaRes.value.data) {
-        combinedData = processIncomingData(supaRes.value.data as RawTransaction[])
-          .map(item => ({ ...item, source: 'supabase' as const }));
-      } else if (supaRes.status === 'rejected') {
-        console.warn('[BudgetIN] Supabase fetch gagal:', supaRes.reason);
-      }
-
-      if (gasRes.status === 'fulfilled') {
-        const json = gasRes.value as { status: string; data: RawTransaction[] };
-        if (json.status === 'success') {
-          const sheetData = processIncomingData(json.data)
-            .map(item => ({ ...item, source: 'sheet' as const }));
-          combinedData = [...combinedData, ...sheetData];
-        }
-      } else {
-        console.warn('[BudgetIN] Sheets sync gagal:', gasRes.reason);
-      }
-
-      const unique = combinedData.filter((item, index, self) =>
-        index === self.findIndex(tx =>
-          tx.dateKey === item.dateKey && tx.amount === item.amount && tx.desc?.toLowerCase() === item.desc?.toLowerCase()
-        )
-      );
-      
-      unique.sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime() || b.id - a.id);
-      setTransactions(unique);
-      
-      if (unique.length === 0 && supaRes.status === 'rejected') {
+      if (supaErr) {
+        console.warn('[BudgetIN] Supabase fetch gagal:', supaErr.message);
         setError('Gagal memuat data. Periksa koneksi internet kamu.');
       }
+
+      const supaTransactions = supaData
+        ? processIncomingData(supaData as RawTransaction[]).map(item => ({ ...item, source: 'supabase' as const }))
+        : [];
+
+      // 🔥 Langsung tampilkan data Supabase — Skeleton HILANG di sini!
+      const sorted = dedupeAndSort(supaTransactions);
+      setTransactions(sorted);
+
     } catch (e) {
       console.error(e);
       setError('Terjadi kesalahan yang tidak terduga.');
     } finally {
       setLoading(false);
-      setIsFetching(false);
-      setIsSyncingGAS(false);
+      setIsFetching(false); // UI sudah interaktif!
+    }
+
+    // ═══ TAHAP 2: GAS di background — TIDAK menghambat UI ═══
+    if (GAS_URL) {
+      setIsSyncingGAS(true);
+      try {
+        const gasRes = await fetch(`${GAS_URL}?userid=${userId}`);
+        const json = await gasRes.json();
+
+        if (json.status === 'success' && json.data?.length > 0) {
+          const sheetData = processIncomingData(json.data as RawTransaction[])
+            .map(item => ({ ...item, source: 'sheet' as const }));
+
+          // Merge dengan data Supabase yang sudah ditampilkan
+          setTransactions((prev: Transaction[]) => {
+            const merged = [...prev, ...sheetData];
+            return dedupeAndSort(merged);
+          });
+        }
+      } catch (gasErr) {
+        console.warn('[BudgetIN] GAS background sync gagal:', gasErr);
+        // Tidak tampilkan error ke UI — data Supabase sudah cukup
+      } finally {
+        setIsSyncingGAS(false);
+      }
     }
   }, [transactions.length, setTransactions]);
 
@@ -98,7 +115,6 @@ export function useFinanceData() {
     if (globalHasFetchedGoals && !isRefresh) return;
     globalHasFetchedGoals = true;
     
-    setIsFetching(true);
     try {
       const { data, error: dbError } = await supabase
         .from('goals')
@@ -110,8 +126,6 @@ export function useFinanceData() {
       if (data) setGoals(data as Goal[]);
     } catch (err) {
       console.error('[BudgetIN] Gagal mengambil goals', err);
-    } finally {
-      setIsFetching(false);
     }
   }, []);
 
