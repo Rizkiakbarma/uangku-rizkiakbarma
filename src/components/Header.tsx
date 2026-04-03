@@ -8,7 +8,7 @@ interface HeaderProps {
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
-  const { t, toggleTheme, isSyncingGAS, isDemo, userId, fetchData, fetchGoals } = useApp();
+  const { t, toggleTheme, isFetching, isDemo, userId, fetchData, fetchGoals } = useApp();
 
   const handleRefresh = () => {
     if (userId) {
@@ -34,11 +34,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
           >
             Live Sync Active
           </Badge>
-          {isSyncingGAS && (
-            <Badge className="hidden sm:flex px-2.5 py-0.5 font-bold text-[8px] uppercase tracking-widest rounded-full border animate-pulse bg-amber-50 text-amber-600 border-amber-100">
-              ⟳ Sync Legacy Data
-            </Badge>
-          )}
         </Flex>
       </div>
 
@@ -60,7 +55,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           className={`p-2 ${t.cardBg} hover:${t.bgSoft} rounded-xl shadow-sm ring-1 ${t.border} ${t.textSub} active:scale-90 transition-all`}
           title="Refresh Data"
         >
-          <RefreshCcw size={16} strokeWidth={2.5} className={isSyncingGAS ? 'animate-spin' : ''} />
+          <RefreshCcw size={16} strokeWidth={2.5} className={isFetching ? 'animate-spin' : ''} />
         </button>
         <div className={`w-9 h-9 ${t.primary} text-white rounded-lg flex items-center justify-center font-bold text-[10px] shadow-md`}>
           RA
