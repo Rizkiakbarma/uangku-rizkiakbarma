@@ -93,6 +93,7 @@ interface AppContextValue {
   advisorInsight: AdvisorInsight;
   userBadges: BadgeItem[];
   activeGoal: Goal | undefined;
+  activeGoals: Goal[];
   hartaBersih: number;
   nishabReal: number;
   isWajibZakatMaal: boolean;
@@ -190,8 +191,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [currentTheme]);
 
   const startDemo = useCallback(() => {
-    // Navigate dengan param ?demo=true agar instance AppProvider di /dashboard
-    // bisa mendeteksi mode demo lewat URL (state tidak bisa di-pass antar instance)
     navigate('/dashboard?demo=true');
   }, [navigate]);
 
@@ -260,7 +259,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .filter(tx => tx.category?.toUpperCase() === 'SEDEKAH/ZAKAT')
       .reduce((a, b) => a + b.amount, 0);
     const ratio = totalKeluarBulanTerpilih > 0 ? charity / totalKeluarBulanTerpilih : 0;
-    // Skor dimulai dari 40 (baseline sadar keuangan) dan naik ke 100 saat rasio sedekah ≥ 2,5%
     if (ratio >= 0.025) return 100;
     if (ratio > 0) return Math.round(40 + (ratio / 0.025) * 60);
     return 40;
@@ -297,9 +295,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { name: mostFreq || 'N/A', count: counts[mostFreq] || 0 };
   }, [filteredByMonth]);
 
-  const activeGoal = goals.find(g => g.is_active) || goals[0];
+  const activeGoals = goals.filter(g => g.is_active);
+  const activeGoal = activeGoals[0] || goals[0];
 
-  // Rotasi pesan advisor berdasarkan bulan agar tidak repetitif
   const advisorInsight = useMemo((): AdvisorInsight => {
     const seed = viewDate.getMonth() % 3;
     const budgetPct = monthlyBudget > 0 ? (totalKeluarBulanTerpilih / monthlyBudget) * 100 : 0;
@@ -328,7 +326,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     { id: 'king', name: 'Cashflow King', desc: 'Surplus Pemasukan',  icon: Crown,      active: totalMasukBulanTerpilih > 0 && totalMasukBulanTerpilih >= totalKeluarBulanTerpilih * 1.2, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
   ], [barakahScore, monthlyBudget, totalKeluarBulanTerpilih, totalMasukBulanTerpilih, goals]);
 
-  // Zakat computed
   const totalHarta = stats.balance + (Number(zakatSavings) || 0) + (Number(zakatGold) || 0);
   const hartaBersih = Math.max(0, totalHarta - (Number(zakatDebt) || 0));
   const nishabReal = 85 * goldPrice;
@@ -471,7 +468,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     zakatSavings, setZakatSavings, zakatGold, setZakatGold, zakatDebt, setZakatDebt, goldPrice, setGoldPrice,
     stats, filteredByMonth, totalKeluarBulanTerpilih, totalMasukBulanTerpilih,
     momExpensePercentage, momIncomePercentage, barakahScore,
-    chartData, categoryData, leakageInfo, advisorInsight, userBadges, activeGoal,
+    chartData, categoryData, leakageInfo, advisorInsight, userBadges, activeGoal, activeGoals,
     hartaBersih, nishabReal, isWajibZakatMaal, zakatToPay, progressNishab,
     formatRp, axisFormatter,
   };

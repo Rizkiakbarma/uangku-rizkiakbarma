@@ -13,7 +13,7 @@ export default function Dashboard() {
   const {
     t, viewDate, changeMonth, setIsExportModalOpen, setExportMonth, setExportYear,
     totalMasukBulanTerpilih, totalKeluarBulanTerpilih, momIncomePercentage, momExpensePercentage,
-    advisorInsight, barakahScore, chartData, categoryData, userBadges, activeGoal,
+    advisorInsight, barakahScore, chartData, categoryData, userBadges, activeGoals,
     monthlyBudget, isSettingBudget, setIsSettingBudget, handleSaveBudget,
     isBarChart, setIsBarChart, setIsStoryModalOpen, formatRp, axisFormatter,
     setActiveTab,
@@ -142,7 +142,15 @@ export default function Dashboard() {
           </Card>
 
           {/* Goal Aktif — di bawah Alokasi Dana */}
-          <GoalCard activeGoal={activeGoal} t={t} formatRp={formatRp} axisFormatter={axisFormatter} />
+          <div className="flex flex-col gap-4">
+            {activeGoals.length > 0 ? (
+              activeGoals.map(goal => (
+                <GoalCard key={goal.id} activeGoal={goal} t={t} formatRp={formatRp} axisFormatter={axisFormatter} />
+              ))
+            ) : (
+              <GoalCard activeGoal={undefined} t={t} formatRp={formatRp} axisFormatter={axisFormatter} />
+            )}
+          </div>
 
           {/* Financial Insight diletakkan di bawah Goal agar mengisi ruang kosong sejajar dengan limit bulanan */}
           <FinancialAdviceCard />
