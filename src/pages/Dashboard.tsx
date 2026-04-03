@@ -149,16 +149,31 @@ export default function Dashboard() {
             </div>
           </Card>
 
-          {/* Goal Aktif — di bawah Alokasi Dana */}
-          <div className="flex flex-col gap-4">
-            {activeGoals.length > 0 ? (
-              activeGoals.map(goal => (
-                <GoalCard key={goal.id} activeGoal={goal} t={t} formatRp={formatRp} axisFormatter={axisFormatter} />
-              ))
-            ) : (
-              <GoalCard activeGoal={undefined} t={t} formatRp={formatRp} axisFormatter={axisFormatter} />
-            )}
-          </div>
+          {/* Goal Aktif — Satu Grid/Card untuk Semua Target */}
+          <Card className={`rounded-[2.5rem] border-none shadow-xl p-6 ring-1 relative overflow-hidden transition-all duration-500 ${t.cardBg} ${t.border}`}>
+            <Title className={`text-[10px] font-bold tracking-[0.3em] uppercase mb-6 border-l-4 pl-3 leading-none ${t.textMain} ${t.primaryBorder}`}>Target Masa Depan 🎯</Title>
+            
+            <div className="relative z-10 w-full">
+              {activeGoals.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-2 gap-6 pb-2">
+                  {activeGoals.map(goal => (
+                    <CompactGoalItem key={goal.id} goal={goal} t={t} formatRp={formatRp} />
+                  ))}
+                </div>
+              ) : (
+                <div 
+                  className="flex flex-col items-center justify-center py-10 cursor-pointer group"
+                  onClick={() => window.location.href = '/goals' + window.location.search}
+                >
+                  <div className={`p-5 rounded-full mb-4 bg-white/5 border border-dashed border-white/20 group-hover:scale-110 transition-transform ${t.textSub}`}>
+                    <Target size={40} strokeWidth={1.5} />
+                  </div>
+                  <Text className={`font-black uppercase tracking-widest text-xs mb-1 ${t.textSub}`}>Belum ada target.</Text>
+                  <Text className={`text-[10px] italic font-medium opacity-60 ${t.textSub}`}>Ketik `/setgoal Laptop 10jt` di Bot!</Text>
+                </div>
+              )}
+            </div>
+          </Card>
 
           {/* Financial Insight diletakkan di bawah Goal agar mengisi ruang kosong sejajar dengan limit bulanan */}
           <FinancialAdviceCard />
@@ -176,8 +191,6 @@ export default function Dashboard() {
     </div>
   );
 }
-
-// ── Sub-komponen Lokal ────────────────────────────────────────────────────────
 
 function FinancialAdviceCard() {
   const { t, categoryData, totalKeluarBulanTerpilih, totalMasukBulanTerpilih, formatRp } = useApp() as any;
@@ -267,7 +280,7 @@ function BarakahScoreCard() {
   );
 }
 
-function BadgesCard({ userBadges, t }: { userBadges: ReturnType<typeof useApp>['userBadges']; t: ReturnType<typeof useApp>['t'] }) {
+function BadgesCard({ userBadges, t }: { userBadges: any; t: any }) {
   return (
     <Card className={`rounded-[2.5rem] border-none shadow-lg ring-1 p-6 overflow-hidden relative transition-colors duration-500 ${t.cardBg} ${t.border}`}>
       <Flex className="mb-5 items-center justify-between">
@@ -275,7 +288,7 @@ function BadgesCard({ userBadges, t }: { userBadges: ReturnType<typeof useApp>['
         <Trophy size={16} className={t.textSub} />
       </Flex>
       <div className="grid grid-cols-2 gap-4">
-        {userBadges.map(b => (
+        {userBadges.map((b: any) => (
           <div key={b.id} className={`flex flex-col items-center text-center p-4 rounded-2xl border transition-all duration-500 ${b.active ? `${b.bg} ${b.border} shadow-sm transform hover:scale-105` : `${t.bgSoft} border-transparent opacity-50 grayscale`}`}>
             <b.icon size={28} strokeWidth={2.5} className={`mb-2 ${b.active ? b.color : t.textSub}`} />
             <p className={`text-[9px] font-black uppercase tracking-widest leading-tight mb-1 ${b.active ? t.textMain : t.textSub}`}>{b.name}</p>
@@ -287,83 +300,50 @@ function BadgesCard({ userBadges, t }: { userBadges: ReturnType<typeof useApp>['
   );
 }
 
-function GoalCard({ activeGoal, t, formatRp, axisFormatter }: {
-  activeGoal: ReturnType<typeof useApp>['activeGoal'];
-  t: ReturnType<typeof useApp>['t'];
+function CompactGoalItem({ goal, t, formatRp }: { 
+  goal: any; 
+  t: any;
   formatRp: (n: number) => string;
-  axisFormatter: (n: number) => string;
 }) {
-  if (!activeGoal) {
-    return (
-      <Card
-        className={`rounded-[2.5rem] border-none shadow-sm p-6 text-center flex flex-col items-center justify-center border-2 border-dashed cursor-pointer transition-colors h-36 ${t.bgSoft} ${t.border}`}
-        onClick={() => window.location.href = '/goals' + window.location.search}
-      >
-        <Target className={`mb-3 ${t.textSub}`} size={32} />
-        <Text className={`text-[10px] font-bold uppercase ${t.textSub}`}>Belum ada target.</Text>
-        <Text className={`text-[9px] mt-1 italic ${t.textSub}`}>Ketik `/setgoal Laptop 10jt` di Bot!</Text>
-      </Card>
-    );
-  }
-
-  const pct = Math.min(Math.round((activeGoal.current_amount / activeGoal.target_amount) * 100), 100);
-  const r = 52;
+  const pct = Math.min(Math.round((goal.current_amount / goal.target_amount) * 100), 100);
+  const r = 38;
   const circumference = 2 * Math.PI * r;
   const offset = circumference - (pct / 100) * circumference;
 
   return (
-    <Card
-      className={`rounded-[2.5rem] border-none shadow-xl p-6 text-white relative overflow-hidden group hover:shadow-2xl transition-all cursor-pointer ${t.darkCardBg}`}
+    <div 
+      className="flex flex-col items-center text-center cursor-pointer group"
       onClick={() => window.location.href = '/goals' + window.location.search}
     >
-      <div className="absolute -top-10 -right-10 opacity-10 group-hover:scale-110 transition-transform duration-1000"><Target size={160} /></div>
-      <Title className={`text-[10px] font-bold tracking-[0.3em] uppercase mb-5 border-l-4 pl-3 leading-none ${t.accentDark} border-current`}>Fokus Target 🎯</Title>
-
-      {/* Layout horizontal di desktop, vertikal di mobile */}
-      <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6">
-
-        {/* Circular Progress */}
-        <div className="relative flex-shrink-0">
-          <svg className="w-32 h-32 transform -rotate-90">
-            <circle cx="64" cy="64" r={r} stroke="currentColor" strokeWidth="10" fill="transparent" className="text-white/10" />
-            <circle cx="64" cy="64" r={r} stroke="currentColor" strokeWidth="10" fill="transparent"
-              strokeDasharray={circumference}
-              strokeDashoffset={offset}
-              className={`transition-all duration-1000 ease-out ${t.accentDark}`}
-            />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-black leading-none">{pct}%</span>
-            <span className="text-[8px] font-bold uppercase tracking-widest mt-1 opacity-60">Done</span>
-          </div>
-        </div>
-
-        {/* Detail Goal */}
-        <div className="flex-1 min-w-0 w-full">
-          <Flex className="mb-4 items-start">
-            <h3 className="text-xl font-black tracking-tight truncate">{activeGoal.goal_name}</h3>
-          </Flex>
-          <ProgressBar value={(activeGoal.current_amount / activeGoal.target_amount) * 100} color={t.chartMain as any} className="h-2.5 rounded-full mb-5 bg-white/10" />
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-              <Text className="text-[8px] text-white/50 uppercase font-bold mb-1">Di Celengan</Text>
-              <Text className={`text-sm font-black ${t.accentDark}`}>{formatRp(activeGoal.current_amount)}</Text>
-            </div>
-            <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-              <Text className="text-[8px] text-white/50 uppercase font-bold mb-1">Target Misi</Text>
-              <Text className="text-sm font-black text-white">{axisFormatter(activeGoal.target_amount)}</Text>
-            </div>
-          </div>
+      <div className="relative mb-3 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+        <svg className="w-24 h-24 transform -rotate-90 drop-shadow-sm">
+          <circle cx="48" cy="48" r={r} stroke="currentColor" strokeWidth="6" fill="transparent" className={t.bgSoft} />
+          <circle cx="48" cy="48" r={r} stroke="currentColor" strokeWidth="6" fill="transparent"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            className={`transition-all duration-1000 ease-out ${t.primaryText}`}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className={`text-[15px] font-black leading-none ${t.textMain}`}>{pct}%</span>
+          <span className={`text-[7px] font-bold uppercase tracking-widest mt-0.5 ${t.textSub}`}>Done</span>
         </div>
       </div>
-    </Card>
+      <h3 className={`text-[10px] font-black uppercase tracking-widest leading-tight truncate w-full ${t.textMain}`}>
+        {goal.goal_name}
+      </h3>
+      <p className={`text-[8px] font-bold mt-1 ${t.textSub}`}>
+        {formatRp(goal.current_amount).replace(',00', '')} / {formatRp(goal.target_amount).replace(',00', '')}
+      </p>
+    </div>
   );
 }
 
 function BudgetCard({ monthlyBudget, isSettingBudget, setIsSettingBudget, handleSaveBudget, totalKeluarBulanTerpilih, t, formatRp }: {
   monthlyBudget: number; isSettingBudget: boolean;
   setIsSettingBudget: (v: boolean) => void; handleSaveBudget: (v: string) => void;
-  totalKeluarBulanTerpilih: number; t: ReturnType<typeof useApp>['t']; formatRp: (n: number) => string;
+  totalKeluarBulanTerpilih: number; t: any; formatRp: (n: number) => string;
 }) {
   return (
     <Card className={`rounded-[2.5rem] border-none shadow-lg ring-1 p-6 overflow-hidden relative transition-colors duration-500 ${t.cardBg} ${t.border}`}>
