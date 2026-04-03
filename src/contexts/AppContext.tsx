@@ -33,7 +33,6 @@ interface AppContextValue {
   loading: boolean;
   isFetching: boolean;
   error: string | null;
-  isSyncingGAS: boolean;
   fetchData: (id: string, isRefresh?: boolean) => Promise<void>;
   fetchGoals: (id: string, isRefresh?: boolean) => Promise<void>;
   // Navigation
@@ -138,7 +137,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [zakatDebt, setZakatDebt] = useState('');
   const [goldPrice, setGoldPrice] = useState(1350000);
 
-  const { transactions, setTransactions, goals, setGoals, loading, isFetching, error, isSyncingGAS, fetchData, fetchGoals, startDemo: _startDemo } = useFinanceData();
+  const { transactions, setTransactions, goals, setGoals, loading, isFetching, error, fetchData, fetchGoals, startDemo: _startDemo } = useFinanceData();
 
   useEffect(() => {
     let activeKey = searchParams.get('key');
@@ -489,7 +488,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: AppContextValue = {
     t, currentTheme, toggleTheme,
     userId, secretKey, isDemo, startDemo,
-    transactions, goals, loading, isFetching, error, isSyncingGAS, fetchData, fetchGoals,
+    transactions, goals, loading, isFetching, error, fetchData, fetchGoals,
     viewDate, changeMonth,
     isBarChart, setIsBarChart,
     searchQuery, setSearchQuery,
