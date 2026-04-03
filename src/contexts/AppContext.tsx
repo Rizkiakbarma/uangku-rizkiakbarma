@@ -183,6 +183,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     validateAccess();
   }, [searchParams.get('key'), searchParams.get('demo'), navigate, fetchData, fetchGoals, _startDemo]);
 
+  // Realtime Data Sync
+  useEffect(() => {
+    if (!userId || isDemo) return;
+
+    const txChannel = supabase
+      .channel('public:transactions')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${userId}` }, () => {
+        fetchData(userId, true);
+      })
+      .subscribe();
+
+    const goalsChannel = supabase
+      .channel('public:goals')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'goals', filter: `user_id=eq.${userId}` }, () => {
+        fetchGoals(userId, true);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(txChannel);
+      supabase.removeChannel(goalsChannel);
+    };
+  }, [userId, isDemo, fetchData, fetchGoals]);
+
   const toggleTheme = useCallback(() => {
     const keys = Object.keys(THEMES) as ThemeId[];
     const next = keys[(keys.indexOf(currentTheme) + 1) % keys.length];

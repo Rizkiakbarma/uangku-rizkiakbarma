@@ -12,8 +12,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   const handleRefresh = () => {
     if (userId) {
-      fetchData(userId);
-      fetchGoals(userId);
+      fetchData(userId, true);
+      fetchGoals(userId, true);
     }
   };
 
