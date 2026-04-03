@@ -141,7 +141,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { transactions, setTransactions, goals, setGoals, loading, isFetching, error, isSyncingGAS, fetchData, fetchGoals, startDemo: _startDemo } = useFinanceData();
 
   useEffect(() => {
-    const keyFromUrl = searchParams.get('key');
+    let activeKey = searchParams.get('key');
     const demoMode = searchParams.get('demo') === 'true';
 
     if (demoMode) {
@@ -150,7 +150,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (!keyFromUrl) {
+    const savedKey = localStorage.getItem('budgetin_access_key');
+    if (activeKey) {
+      localStorage.setItem('budgetin_access_key', activeKey);
+    } else if (savedKey) {
+      activeKey = savedKey;
+    }
+
+    if (!activeKey) {
       if (window.location.pathname !== '/landing') {
         navigate('/landing', { replace: true });
       }
@@ -162,13 +169,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const { data, error } = await supabase
           .from('users_auth')
           .select('telegram_id')
-          .eq('secret_key', keyFromUrl)
+          .eq('secret_key', activeKey)
           .single();
           
         if (error || !data) throw new Error("Akses ditolak: Kunci rahasia tidak valid.");
 
         const validUserId = data.telegram_id;
-        setSecretKey(keyFromUrl);
+        setSecretKey(activeKey);
         setUserId(validUserId);
         fetchData(validUserId);
         fetchGoals(validUserId);
@@ -177,6 +184,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (savedBudget) setMonthlyBudget(parseInt(savedBudget));
       } catch (err) {
         console.error("Auth Error:", err);
+        localStorage.removeItem('budgetin_access_key');
         navigate('/landing', { replace: true });
       }
     };

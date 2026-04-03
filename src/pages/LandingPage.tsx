@@ -1,10 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Activity, MessageSquare, Calculator, ArrowUpRight, Palette } from 'lucide-react';
 import { Badge } from '@tremor/react';
 import { useApp } from '../contexts/AppContext';
 
 export default function LandingPage() {
   const { t, toggleTheme, startDemo } = useApp();
+  const [manualKey, setManualKey] = useState('');
+
+  const handleManualLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (manualKey.trim()) {
+      window.location.href = `/dashboard?key=${manualKey.trim()}`;
+    }
+  };
 
   return (
     <div className={`min-h-screen font-sans flex flex-col transition-colors duration-500 ${t.bg} ${t.textMain} ${t.selectionColor}`}>
@@ -67,6 +75,29 @@ export default function LandingPage() {
           >
             Lihat Demo Dashboard
           </button>
+        </div>
+
+        {/* Manual Key Login */}
+        <div className={`mt-8 w-full max-w-md rounded-[1.5rem] border p-5 ${t.bgSoft} ${t.border}`}>
+          <p className={`text-[10px] font-bold uppercase tracking-[0.25em] mb-3 text-center ${t.textSub}`}>
+            Sudah punya kunci akses? Masukkan di sini
+          </p>
+          <form onSubmit={handleManualLogin} className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Tempel kode rahasiamu..."
+              value={manualKey}
+              onChange={e => setManualKey(e.target.value)}
+              className={`flex-1 px-4 py-3 rounded-xl border text-xs font-bold outline-none transition-all bg-transparent placeholder:opacity-40 ${t.textMain} ${t.border} ${t.borderFocus}`}
+            />
+            <button
+              type="submit"
+              disabled={!manualKey.trim()}
+              className={`px-5 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all disabled:opacity-30 ${t.primary} text-white`}
+            >
+              Masuk
+            </button>
+          </form>
         </div>
       </main>
 
