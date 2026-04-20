@@ -41,7 +41,7 @@ export interface Goal {
   created_at: string;
 }
 
-export type ThemeId = 'emerald' | 'dark' | 'pastel' | 'rainbow' | 'vintage' | 'modern';
+export type ThemeId = 'emerald' | 'dark' | 'pastel' | 'rainbow' | 'vintage' | 'modern' | 'pixel' | 'cyberpunk';
 
 export interface ThemeConfig {
   id: ThemeId;

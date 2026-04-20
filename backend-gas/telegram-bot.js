@@ -105,14 +105,38 @@ function handleRegistration(chatId, key, firstName) {
                 vSheet.getRange(i + 1, 3).setValue(chatId);
                 uSheet.appendRow([chatId, firstName || "Customer", "ACTIVE", secretKey]);
 
-                // Daftarkan ke Supabase users_auth
+                // === SINKRONISASI KE SUPABASE (UPSERT) ===
+
+                // 1. Update tabel 'vouchers'
+                sendToSupabase("vouchers", {
+                    trx_id: inputKey,     // Sesuai screenshot: kolom 'trx_id'
+                    status: "USED",
+                    used_by: String(chatId)
+                });
+
+                // 2. Insert/Update tabel 'users'
+                sendToSupabase("users", {
+                    telegram_id: String(chatId),
+                    name: firstName || "Customer", // Sesuai screenshot: kolom 'name'
+                    status: "ACTIVE"
+                });
+
+                // (Opsional) Tetap update users_auth untuk kompatibilitas sistem lama
                 sendToSupabase("users_auth", {
                     secret_key: secretKey,
                     telegram_id: String(chatId),
                     name: firstName || "Customer"
                 });
 
-                return `✅ *AKTIVASI BERHASIL!*\n\nSelamat! BudgetIN Pro kamu sekarang sudah aktif selamanya. Silakan ketik \`/help\` untuk panduan.\n\n📊 *Dashboard Akses Pribadi:* [Buka Di Sini](${DASHBOARD_URL}/?key=${secretKey})`;
+                const successMsg = `✅ *AKTIVASI BERHASIL!*\n\nSelamat! BudgetIN Pro kamu sekarang sudah aktif selamanya. Agar tidak bingung, yuk ikuti tutorial singkat cara pakainya! 🚀`;
+                const replyMarkup = {
+                    inline_keyboard: [
+                        [{ text: "🚀 Mulai Tutorial", callback_data: "tutor_1" }],
+                        [{ text: "⏩ Lewati Tutorial", callback_data: "tutor_skip" }]
+                    ]
+                };
+                sendTelegramMessage(chatId, successMsg, replyMarkup);
+                return "SUDAH_DIKIRIM"; // Indikator agar doPost tidak mengirim pesan lagi
             }
         }
         return "❌ ID Pesanan tidak ditemukan. Pastikan kamu copy-paste TRX ID dengan benar.";
@@ -191,6 +215,16 @@ function doPost(e) {
         let text = message.text.trim();
         const firstName = message.from ? message.from.first_name : "User";
 
+        // === MAPPING REPLY KEYBOARD BUTTONS TO COMMANDS ===
+        const buttonMapping = {
+            "📊 Dashboard": "/dashboard",
+            "🔑 Kode Akses": "/kodeakses",
+            "📈 Statistik": "/stats",
+            "🎯 Target Goals": "/setgoal",
+            "❓ Bantuan": "/help"
+        };
+        if (buttonMapping[text]) text = buttonMapping[text];
+
         if (text === "/id") {
             sendTelegramMessage(chatId, `🆔 *ID Telegram Kamu:* \`${chatId}\``);
             return;
@@ -202,7 +236,8 @@ function doPost(e) {
                 sendTelegramMessage(chatId, "⚠️ Gunakan format: `/register [REF_ID]`");
                 return;
             }
-            sendTelegramMessage(chatId, handleRegistration(chatId, key, firstName));
+            const result = handleRegistration(chatId, key, firstName);
+            if (result !== "SUDAH_DIKIRIM") sendTelegramMessage(chatId, result);
             return;
         }
 
@@ -244,7 +279,7 @@ function doPost(e) {
         // --- 🤖 FITUR GOALS: WIZARD SETGOAL ---
         const stateCachePath = `state_${chatId}`;
         const userState = CacheService.getScriptCache().get(stateCachePath);
-        
+
         if (userState === "SETGOAL_NAME" && !text.startsWith("/")) {
             CacheService.getScriptCache().put(stateCachePath, 'SETGOAL_AMT|' + text, 600);
             sendTelegramMessage(chatId, `Sip! Target tabunganmu: *${text}*\n\nBerapa target nominal untuk dicapai?\n_Ketik angkanya saja, contoh: 15.000.000 atau 15jt_`);
@@ -271,7 +306,7 @@ function doPost(e) {
         if (text.startsWith("/setgoal ")) {
             const targetAmount = parseAmount(text);
             const goalName = text.replace('/setgoal', '').replace(/[\d\.,]+/g, '').replace(/\b(miliar|m|juta|jt|ribu|rb|k|ratus|perak)\b/gi, '').trim() || "Target Baru";
-            
+
             if (!targetAmount) {
                 sendTelegramMessage(chatId, "❌ Nominal tidak valid.\nGunakan: `/setgoal [nama_target] [nominal]` atau ketik `/setgoal` saja.");
                 return;
@@ -332,7 +367,7 @@ function doPost(e) {
 
                 const cacheKey = "g" + new Date().getTime().toString(36);
                 CacheService.getScriptCache().put(cacheKey, JSON.stringify({ amt: amt }), 600);
-                
+
                 let keyboard = [];
                 activeGoals.forEach(g => {
                     keyboard.push([{ text: `🎯 ${g.goal_name}`, callback_data: `selGoal_${cacheKey}_${g.id}` }]);
@@ -504,7 +539,7 @@ function processTransaction(chatId, text) {
     if (!text) return;
     const amount = parseAmount(text);
     if (!amount) {
-        sendTelegramMessage(chatId, "❌ *Nominal Tidak Ditemukan*\n\nBudgetIN butuh angka untuk mencatat.");
+        sendTelegramMessage(chatId, "🤔 *Aduh, aku belum paham maksudmu...*\n\nSepertinya kamu mau mencatat keuangan ya? Coba gunakan format: `[Nama Barang] [Harga]`.\n\nContoh:\n✅ \`Bakso 15k\`\n✅ \`Bensin 20000\`\n✅ \`Gajian 5jt\`\n\n_Atau gunakan tombol Bantuan di bawah jika bingung._");
         return;
     }
     const categories = detectCategories(text);
@@ -557,6 +592,12 @@ function handleCallback(callback) {
         const data = callback.data;
         const chatId = callback.message.chat.id;
         const messageId = callback.message.message_id;
+
+        // --- CALLBACK TUTORIAL AKTIVASI ---
+        if (data.startsWith("tutor_")) {
+            handleTutorial(chatId, messageId, data);
+            return;
+        }
 
         // --- CALLBACK UNTUK AMBIGUITAS KATEGORI ---
         if (data.startsWith("cat_")) {
@@ -674,10 +715,10 @@ function handleCallback(callback) {
             const amt = parsedCache.amt;
 
             // Delete the inline keyboard message beforehand to prevent stacking
-            UrlFetchApp.fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/deleteMessage`, { 
-                method: "post", contentType: "application/json", 
-                payload: JSON.stringify({ chat_id: chatId, message_id: messageId }), 
-                muteHttpExceptions: true 
+            UrlFetchApp.fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/deleteMessage`, {
+                method: "post", contentType: "application/json",
+                payload: JSON.stringify({ chat_id: chatId, message_id: messageId }),
+                muteHttpExceptions: true
             });
 
             if (action === "invest") {
@@ -755,9 +796,15 @@ function handleCallback(callback) {
 
 function sendToSupabase(endpoint, data) {
     const options = {
-        method: "post", contentType: "application/json",
-        headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}`, "Prefer": "return=representation" },
-        payload: JSON.stringify(data), muteHttpExceptions: true
+        method: "post",
+        contentType: "application/json",
+        headers: {
+            "apikey": SUPABASE_KEY,
+            "Authorization": `Bearer ${SUPABASE_KEY}`,
+            "Prefer": "return=representation, resolution=merge-duplicates"
+        },
+        payload: JSON.stringify(data),
+        muteHttpExceptions: true
     };
     try {
         const res = UrlFetchApp.fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, options);
@@ -958,13 +1005,71 @@ function sendDailySummary() {
     }
 }
 
+function handleTutorial(chatId, messageId, data) {
+    let text = "";
+    let keyboard = [];
+
+    if (data === "tutor_1") {
+        text = "📔 *LANGKAH 1: PENCATATAN CEPAT*\n\nBudgetIN didesain agar kamu tidak repot. Kamu cukup ketik teks biasa seperti sedang chat teman.\n\nContoh:\n👉 `Nasi Padang 25k` (Otomatis masuk Kategori Konsumsi)\n👉 `Gajian 5jt` (Otomatis masuk Kategori Pendapatan)\n\nCoba ketik salah satu contoh di atas nanti ya!";
+        keyboard = [[{ text: "Lanjut: Dashboard 📊", callback_data: "tutor_2" }]];
+    } 
+    else if (data === "tutor_2") {
+        const secretKey = getSecretKey(chatId);
+        text = "📊 *LANGKAH 2: DASHBOARD WEB*\n\nIngin melihat grafik cantik dan riwayat lengkap? Kamu punya Dashboard pribadi yang bisa diakses di browser.\n\n🔗 *Link Anda:* [Klik Di Sini](" + DASHBOARD_URL + "/?key=" + secretKey + ")\n\n_Tips: Simpan link ini atau klik tombol 'Dashboard' di menu utama kapan saja._";
+        keyboard = [[{ text: "Lanjut: Target Goals 🎯", callback_data: "tutor_3" }]];
+    }
+    else if (data === "tutor_3") {
+        text = "🎯 *LANGKAH 3: TARGET NABUNG*\n\nPunya impian beli barang atau dana darurat? Gunakan fitur *Target Goals*.\n\n1️⃣ Klik tombol *Target Goals* untuk buat target.\n2️⃣ Ketik `nabung 50k` untuk isi celenganmu.\n\nSeru kan? Uangmu jadi lebih terarah!";
+        keyboard = [[{ text: "Selesai & Mulai! ✨", callback_data: "tutor_done" }]];
+    }
+    else if (data === "tutor_skip" || data === "tutor_done") {
+        text = (data === "tutor_skip") ? "Sip! Tutorial dilewati. Kamu bisa cek bantuan kapan saja dengan ketik `/help`." : "Selamat! Kamu siap mengelola keuangan dengan cerdas. Semangat ya! 💪";
+        
+        UrlFetchApp.fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
+            method: "post", contentType: "application/json",
+            payload: JSON.stringify({ chat_id: chatId, message_id: messageId, text: text, parse_mode: "Markdown" }),
+            muteHttpExceptions: true
+        });
+        
+        sendTelegramMessage(chatId, "Gunakan menu di bawah untuk mulai navigasi:", getMainMenuKeyboard());
+        return;
+    }
+
+    UrlFetchApp.fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/editMessageText`, {
+        method: "post", contentType: "application/json",
+        payload: JSON.stringify({ chat_id: chatId, message_id: messageId, text: text, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } }),
+        muteHttpExceptions: true
+    });
+}
+
 function sendHelpMessage(chatId) {
-    const helpMsg = "Assalamualaikum! 👋\n*BudgetIN Pro* siap bantu catat keuangan kamu.\n\n" +
-        "🚀 *CARA MULAI:*\n1️⃣ `/register [REF_ID]`\n2️⃣ *Langsung Catat:* `Nasi Padang 25rb` atau `Gaji 5jt`\n\n" +
-        "🎯 *FITUR GOALS (Target Nabung):*\n• `/setgoal` — Buat target nabung baru.\n• `nabung 50k` — Ketik jumlah untuk isi celengan.\n\n" +
-        "📊 *DAFTAR PERINTAH LAIN:*\n• `/dashboard` — Link web kamu.\n• `/stats` — Rangkuman 7 hari.\n• `/id` — Cek ID kamu.\n\n" +
-        "💡 _Financial Freedom dimulai dari mencatat keuangan harian._";
-    sendTelegramMessage(chatId, helpMsg);
+    const helpMsg = "👋 *APA YANG BISA SAYA BANTU?*\n\n" +
+        "BudgetIN Pro adalah asisten keuangan pribadi kamu. Berikut panduan cepatnya:\n\n" +
+        "📝 *CARA MENCATAT*\n" +
+        "Ketik langsung: `[Nama Barang] [Harga]`\n" +
+        "• _Contoh:_ `Kopi 20k` atau `Gaji 5jt`\n\n" +
+        "🎯 *TARGET NABUNG (GOALS)*\n" +
+        "• Buat Goal: Klik tombol *Target Goals*\n" +
+        "• Isi Celengan: Ketik `nabung 50k`\n\n" +
+        "🖥️ *AKSES DASHBOARD*\n" +
+        "• Klik *Dashboard* untuk buka di web.\n" +
+        "• Klik *Kode Akses* jika ingin login di laptop.\n\n" +
+        "📈 *STATISTIK*\n" +
+        "• Klik *Statistik* untuk melihat laporan 7 hari & prediksi saldo.\n\n" +
+        "💡 _Butuh bantuan lebih? Hubungi Admin (ID: " + MY_ADMIN_ID + ")_";
+    sendTelegramMessage(chatId, helpMsg, getMainMenuKeyboard());
+}
+
+function getMainMenuKeyboard() {
+    return {
+        keyboard: [
+            [{ text: "📊 Dashboard" }, { text: "🔑 Kode Akses" }],
+            [{ text: "📈 Statistik" }, { text: "🎯 Target Goals" }],
+            [{ text: "❓ Bantuan" }]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: false
+    };
 }
 
 function returnJson(obj) { return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON); }
